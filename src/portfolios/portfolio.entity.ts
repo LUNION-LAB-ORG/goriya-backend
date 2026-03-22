@@ -2,12 +2,14 @@ import {
     Entity,
     PrimaryGeneratedColumn,
     Column,
-    ManyToOne
+    ManyToOne,
+    UpdateDateColumn,
+    CreateDateColumn
 } from "typeorm";
 
 import { User } from "../users/user.entity";
 
-@Entity()
+@Entity('portfolios')
 export class Portfolio {
 
     @PrimaryGeneratedColumn("uuid")
@@ -36,4 +38,11 @@ export class Portfolio {
 
     @ManyToOne(() => User, user => user.portfolios)
     user: User;
+
+    // Horodatage attributes
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+    createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+    updatedAt: Date;   
 }

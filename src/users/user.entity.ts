@@ -4,15 +4,16 @@ import {
     Column,
     OneToMany,
     CreateDateColumn,
-    ManyToOne
+    ManyToOne,
+    UpdateDateColumn
 } from "typeorm";
 
 import { Portfolio } from "../portfolios/portfolio.entity";
 import { Candidature } from "../candidatures/candidature.entity";
-import { UserRole, UserStatus } from "src/@types/enums";
-import { Company } from "src/companies/company.entity";
+import { UserRole, UserStatus } from "../@types/enums";
+import { Company } from "../companies/company.entity";
 
-@Entity()
+@Entity('users')
 export class User {
     @PrimaryGeneratedColumn("uuid")
     id: string;
@@ -43,16 +44,23 @@ export class User {
     @Column({ nullable: true })
     avatar: string;
 
-    @CreateDateColumn()
+    @Column({ name: 'registration_date' })
     registrationDate: Date;
 
     // 🔥 AJOUT ICI
     @ManyToOne(() => Company, company => company.users, { nullable: true })
-    company: Company;
+    company?: Company | null;
 
     @OneToMany(() => Portfolio, portfolio => portfolio.user)
     portfolios: Portfolio[];
 
     @OneToMany(() => Candidature, candidature => candidature.user)
     candidatures: Candidature[];
+
+    // Horodatage attributes
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+    createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+    updatedAt: Date;   
 }

@@ -1,25 +1,27 @@
-import { ScoringStatus } from "src/@types/enums";
+import { ScoringStatus } from "../@types/enums";
 import {
     Entity,
     PrimaryGeneratedColumn,
-    Column
+    Column,
+    UpdateDateColumn,
+    CreateDateColumn
 } from "typeorm";
 
-@Entity()
+@Entity('scoring_results')
 export class ScoringResult {
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
-    @Column()
+    @Column({ name: 'candidate_name' })
     candidateName: string;
 
-    @Column()
+    @Column({ name: 'candidate_email' })
     candidateEmail: string;
 
     @Column()
     position: string;
 
-    @Column()
+    @Column({ name: 'overall_score' })
     overallScore: number;
 
     @Column("jsonb")
@@ -30,4 +32,11 @@ export class ScoringResult {
 
     @Column({ type: "enum", enum: ScoringStatus })
     status: ScoringStatus;
+
+    // Horodatage attributes
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+    createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+    updatedAt: Date;   
 }

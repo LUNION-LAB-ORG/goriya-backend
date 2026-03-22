@@ -7,7 +7,7 @@ import {
     IsObject
 } from "class-validator";
 
-import { ScoringStatus } from "src/@types/enums";
+import { ScoringStatus } from "../../@types/enums";
 
 export class CreateScoringResultDto {
 

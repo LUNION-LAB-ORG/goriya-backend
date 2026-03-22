@@ -2,11 +2,11 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CVAnalysis } from './cv-analysis.entity'
-import { CVStatus } from 'src/@types/enums'
+import { CVStatus } from '../@types/enums'
 import * as fs from 'fs'
 import * as path from 'path'
 import { v4 as uuidv4 } from 'uuid'
-import { UploadedFile } from 'src/@types/utils'
+import { UploadedFile } from '../@types/utils'
 import { CreateCvAnalysisDto } from './dto/create-cv-analysis.dto'
 import { UpdateCvAnalysisDto } from './dto/update-cv-analysis.dto'
 

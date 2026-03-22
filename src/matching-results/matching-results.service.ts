@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { MatchingResult } from './matching-result.entity'
-import { MatchingStatus } from 'src/@types/enums'
+import { MatchingStatus } from '../@types/enums'
 import { UpdateMatchingResultDto } from './dto/update-matching-result.dto'
 import { CreateMatchingResultDto } from './dto/create-matching-result.dto'
 

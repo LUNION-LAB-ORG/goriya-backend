@@ -12,7 +12,7 @@ import {
 import { ScoringResultsService } from './scoring-results.service'
 import { CreateScoringResultDto } from './dto/create-scoring-result.dto'
 import { UpdateScoringResultDto } from './dto/update-scoring-result.dto'
-import { Public } from 'src/auth/public.decorator'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('scoring-results')

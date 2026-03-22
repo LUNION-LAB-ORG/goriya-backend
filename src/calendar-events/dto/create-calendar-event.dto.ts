@@ -6,7 +6,7 @@ import {
     IsDateString
 } from "class-validator";
 
-import { EventStatus, EventType } from "src/@types/enums";
+import { EventStatus, EventType } from "../../@types/enums";
 
 export class CreateCalendarEventDto {
 

@@ -8,7 +8,7 @@ import {
     IsUUID
 } from "class-validator";
 
-import { CandidatureStatus } from "src/@types/enums";
+import { CandidatureStatus } from "../../@types/enums";
 
 export class CreateCandidatureDto {
 

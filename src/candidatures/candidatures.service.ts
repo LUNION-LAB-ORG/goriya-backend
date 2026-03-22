@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Candidature } from './candidature.entity'
-import { CandidatureStatus } from 'src/@types/enums'
+import { CandidatureStatus } from '../@types/enums'
 import { CreateCandidatureDto } from './dto/create-candidature.dto'
 import { UpdateCandidatureDto } from './dto/update-candidature.dto'
 

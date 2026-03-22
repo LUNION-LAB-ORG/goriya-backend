@@ -1,11 +1,13 @@
-import { EventStatus, EventType } from "src/@types/enums";
+import { EventStatus, EventType } from "../@types/enums";
 import {
     Entity,
     PrimaryGeneratedColumn,
-    Column
+    Column,
+    UpdateDateColumn,
+    CreateDateColumn
 } from "typeorm";
 
-@Entity()
+@Entity('calendar_events')
 export class CalendarEvent {
 
     @PrimaryGeneratedColumn("uuid")
@@ -17,10 +19,10 @@ export class CalendarEvent {
     @Column({ type: "enum", enum: EventType })
     type: EventType;
 
-    @Column({ type: "timestamp" })
+    @Column({ type: "timestamp", name: 'start_time' })
     startTime: Date;
 
-    @Column({ type: "timestamp" })
+    @Column({ type: "timestamp", name: 'end_time' })
     endTime: Date;
 
     @Column("text", { array: true })
@@ -31,4 +33,11 @@ export class CalendarEvent {
 
     @Column({ type: "enum", enum: EventStatus })
     status: EventStatus;
+
+    // Horodatage attributes
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+    createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+    updatedAt: Date;          
 }

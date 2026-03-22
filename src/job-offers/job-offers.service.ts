@@ -2,9 +2,9 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { JobOffer } from './job-offer.entity'
-import { JobStatus, JobType } from 'src/@types/enums'
+import { JobStatus, JobType } from '../@types/enums'
 import { UpdateJobOfferDto } from './dto/update-job-offer.dto'
-import { CreatePortfolioDto } from 'src/portfolios/dto/create-portfolio.dto'
+import { CreatePortfolioDto } from '../portfolios/dto/create-portfolio.dto'
 
 @Injectable()
 export class JobOffersService {

@@ -12,8 +12,8 @@ import {
 import { MatchingResultsService } from './matching-results.service'
 import { CreateMatchingResultDto } from './dto/create-matching-result.dto'
 import { UpdateMatchingResultDto } from './dto/update-matching-result.dto'
-import { MatchingStatus } from 'src/@types/enums'
-import { Public } from 'src/auth/public.decorator'
+import { MatchingStatus } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('matching-results')

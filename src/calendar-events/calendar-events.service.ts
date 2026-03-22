@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CalendarEvent } from './calendar-event.entity'
-import { EventType, EventStatus } from 'src/@types/enums'
+import { EventType, EventStatus } from '../@types/enums'
 import { CreateCalendarEventDto } from './dto/create-calendar-event.dto'
 import { UpdateCalendarEventDto } from './dto/update-calendar-event.dto'
 

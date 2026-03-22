@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { ScoringResult } from './scoring-result.entity'
-import { ScoringStatus } from 'src/@types/enums'
+import { ScoringStatus } from '../@types/enums'
 import { CreateScoringResultDto } from './dto/create-scoring-result.dto'
 import { UpdateScoringResultDto } from './dto/update-scoring-result.dto'
 

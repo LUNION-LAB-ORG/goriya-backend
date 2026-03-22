@@ -2,23 +2,25 @@ import {
     Entity,
     PrimaryGeneratedColumn,
     Column,
-    ManyToOne
+    ManyToOne,
+    UpdateDateColumn,
+    CreateDateColumn
 } from "typeorm";
 
 import { User } from "../users/user.entity";
 import { JobOffer } from "../job-offers/job-offer.entity";
-import { CandidatureStatus } from "src/@types/enums";
+import { CandidatureStatus } from "../@types/enums";
 
-@Entity()
+@Entity('candidatures')
 export class Candidature {
 
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
-    @Column()
+    @Column({ name: 'candidate_name' })
     candidateName: string;
 
-    @Column()
+    @Column({ name: 'candidate_email' })
     candidateEmail: string;
 
     @Column({
@@ -31,7 +33,7 @@ export class Candidature {
     @Column({ default: 0 })
     score: number;
 
-    @Column({ type: "timestamp" })
+    @Column({ type: "timestamp", name: 'applied_date' })
     appliedDate: Date;
 
     @ManyToOne(() => User, user => user.candidatures)
@@ -39,4 +41,11 @@ export class Candidature {
 
     @ManyToOne(() => JobOffer, offer => offer.candidatures)
     jobOffer: JobOffer;
+
+    // Horodatage attributes
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+    createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+    updatedAt: Date;   
 }

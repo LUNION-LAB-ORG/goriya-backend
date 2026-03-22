@@ -6,7 +6,7 @@ import {
     IsEnum
 } from "class-validator";
 
-import { CVStatus } from "src/@types/enums";
+import { CVStatus } from "../../@types/enums";
 
 export class CreateCvAnalysisDto {
     // fileName ne sera pas défini ici, il sera récupéré via UploadedFile()

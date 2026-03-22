@@ -11,9 +11,9 @@ import {
 } from '@nestjs/common'
 import { JobOffersService } from './job-offers.service'
 import { UpdateJobOfferDto } from './dto/update-job-offer.dto'
-import { CreatePortfolioDto } from 'src/portfolios/dto/create-portfolio.dto'
-import { JobStatus, JobType } from 'src/@types/enums'
-import { Public } from 'src/auth/public.decorator'
+import { CreatePortfolioDto } from '../portfolios/dto/create-portfolio.dto'
+import { JobStatus, JobType } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('job-offers')

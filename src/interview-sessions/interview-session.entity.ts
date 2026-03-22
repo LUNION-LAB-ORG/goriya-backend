@@ -1,20 +1,22 @@
-import { InterviewStatus } from "src/@types/enums";
+import { InterviewStatus } from "../@types/enums";
 import {
     Entity,
     PrimaryGeneratedColumn,
-    Column
+    Column,
+    UpdateDateColumn,
+    CreateDateColumn
 } from "typeorm";
 
-@Entity()
+@Entity('interview_sessions')
 export class InterviewSession {
 
     @PrimaryGeneratedColumn("uuid")
     id: string;
 
-    @Column()
+    @Column({ name: 'candidate_name' })
     candidateName: string;
 
-    @Column()
+    @Column({ name: 'candidate_email' })
     candidateEmail: string;
 
     @Column()
@@ -29,9 +31,16 @@ export class InterviewSession {
     @Column({ type: "enum", enum: InterviewStatus })
     status: InterviewStatus;
 
-    @Column({ type: "timestamp" })
+    @Column({ type: "timestamp", name: 'start_time' })
     startTime: Date;
 
     @Column({ nullable: true })
     feedback: string;
+
+    // Horodatage attributes
+    @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+    createdAt: Date;
+
+    @UpdateDateColumn({ name: 'updated_at', type: 'timestamp' })
+    updatedAt: Date;     
 }

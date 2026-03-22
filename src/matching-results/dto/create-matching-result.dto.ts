@@ -6,7 +6,7 @@ import {
     IsDateString
 } from "class-validator";
 
-import { MatchingStatus } from "src/@types/enums";
+import { MatchingStatus } from "../../@types/enums";
 
 export class CreateMatchingResultDto {
 

@@ -7,7 +7,7 @@ import {
     IsOptional
 } from "class-validator";
 
-import { InterviewStatus } from "src/@types/enums";
+import { InterviewStatus } from "../../@types/enums";
 
 export class CreateInterviewSessionDto {
 

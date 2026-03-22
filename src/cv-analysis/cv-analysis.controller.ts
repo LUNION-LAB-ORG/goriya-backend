@@ -15,8 +15,8 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { CVAnalysisService } from './cv-analysis.service'
 import { CreateCvAnalysisDto } from './dto/create-cv-analysis.dto'
 import { UpdateCvAnalysisDto } from './dto/update-cv-analysis.dto'
-import { CVStatus } from 'src/@types/enums'
-import { Public } from 'src/auth/public.decorator'
+import { CVStatus } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('cv-analysis')

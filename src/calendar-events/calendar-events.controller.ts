@@ -12,8 +12,8 @@ import {
 import { CalendarEventsService } from './calendar-events.service'
 import { CreateCalendarEventDto } from './dto/create-calendar-event.dto'
 import { UpdateCalendarEventDto } from './dto/update-calendar-event.dto'
-import { EventType, EventStatus } from 'src/@types/enums'
-import { Public } from 'src/auth/public.decorator'
+import { EventType, EventStatus } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()   
 @Controller('calendar-events')

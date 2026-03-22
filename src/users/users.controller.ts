@@ -16,10 +16,8 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { UsersService } from './users.service'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
-import { JwtAuthGuard } from 'src/auth/jwt-auth.guard'
-import { CompanyStatus, UserRole, UserStatus } from 'src/@types/enums'
-import { Roles } from 'src/auth/roles.decorator'
-import { Public } from 'src/auth/public.decorator'
+import { CompanyStatus, UserRole, UserStatus } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('users')

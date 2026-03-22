@@ -1,5 +1,5 @@
-import { DataSource, DataSourceOptions } from 'typeorm';
-import { SeederOptions } from 'typeorm-extension';
+import "reflect-metadata";
+import { DataSource } from "typeorm";
 import { User } from '../users/user.entity';
 import { Portfolio } from '../portfolios/portfolio.entity';
 import { Candidature } from '../candidatures/candidature.entity';
@@ -10,7 +10,6 @@ import { Company } from '../companies/company.entity';
 import { MatchingResult } from '../matching-results/matching-result.entity';
 import { InterviewSession } from '../interview-sessions/interview-session.entity';
 import { CVAnalysis } from '../cv-analysis/cv-analysis.entity';
-import MainSeeder from './seeders/main.seeder';
 
 export const AppDataSource = new DataSource({
     type: 'postgres',
@@ -19,10 +18,9 @@ export const AppDataSource = new DataSource({
     username: 'postgres',
     password: '123456789',
     database: 'goriya_db',
-
-    dropSchema: true, // DEV
-    synchronize: true,
-
+    dropSchema: false,
+    synchronize: false,
+    migrations: ["src/database/migrations/*.ts"],
     entities: [
         User,
         Portfolio,
@@ -34,8 +32,5 @@ export const AppDataSource = new DataSource({
         InterviewSession,
         CVAnalysis,
         CalendarEvent
-    ],
-
-    // 👇 seed config
-    seeds: [MainSeeder],
-} as DataSourceOptions & SeederOptions);
+    ]
+});

@@ -12,8 +12,8 @@ import {
 import { InterviewSessionsService } from './interview-sessions.service'
 import { CreateInterviewSessionDto } from './dto/create-interview-session.dto'
 import { UpdateInterviewSessionDto } from './dto/update-interview-session.dto'
-import { InterviewStatus } from 'src/@types/enums'
-import { Public } from 'src/auth/public.decorator'
+import { InterviewStatus } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('interview-sessions')

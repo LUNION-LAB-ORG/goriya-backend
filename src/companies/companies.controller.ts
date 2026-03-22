@@ -1,27 +1,28 @@
-import { 
-    Controller, 
-    Get, 
-    Post, 
-    Patch, 
-    Delete, 
-    Param, 
-    Body, 
-    Query, 
-    UploadedFile, 
-    UseInterceptors, 
-    ParseIntPipe 
+import {
+    Controller,
+    Get,
+    Post,
+    Patch,
+    Delete,
+    Param,
+    Body,
+    Query,
+    UploadedFile,
+    UseInterceptors,
+    ParseIntPipe,
+    UploadedFiles
 } from '@nestjs/common'
-import { FileInterceptor } from '@nestjs/platform-express'
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express'
 import { CompaniesService } from './companies.service'
 import { CreateCompanyDto } from './dto/create-company.dto'
 import { UpdateCompanyDto } from './dto/update-company.dto'
-import { CompanyStatus } from 'src/@types/enums'
-import { Public } from 'src/auth/public.decorator'
+import { CompanyStatus } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('companies')
 export class CompaniesController {
-    constructor(private readonly companiesService: CompaniesService) {}
+    constructor(private readonly companiesService: CompaniesService) { }
 
     /*
     |----------------------------------------------------------------------
@@ -29,9 +30,20 @@ export class CompaniesController {
     |----------------------------------------------------------------------
     */
     @Post()
-    @UseInterceptors(FileInterceptor('logo'))
-    async create(@Body() data: CreateCompanyDto, @UploadedFile() logo?: Express.Multer.File) {
-        return this.companiesService.create(data, logo)
+    @UseInterceptors(
+        FileFieldsInterceptor([
+            { name: 'logo', maxCount: 1 },
+            { name: 'coverImage', maxCount: 1 }
+        ])
+    )
+    async create(
+        @Body() data: CreateCompanyDto,
+        @UploadedFiles() files: {
+            logo?: Express.Multer.File[],
+            coverImage?: Express.Multer.File[]
+        }
+    ) {
+        return this.companiesService.create(data, files);
     }
 
     /*
@@ -53,18 +65,38 @@ export class CompaniesController {
     async paginate(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
         @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 10,
+
         @Query('name') name?: string,
         @Query('sector') sector?: string,
         @Query('status') status?: CompanyStatus,
-        @Query('partnershipDate') partnershipDate?: string,
-    ) {
-        const filters: any = {}
-        if (name) filters.name = name
-        if (sector) filters.sector = sector
-        if (status) filters.status = status
-        if (partnershipDate) filters.partnershipDate = partnershipDate
 
-        return this.companiesService.paginate(page, limit, filters)
+        @Query('country') country?: string,
+        @Query('city') location?: string,
+        @Query('companySize') companySize?: string,
+
+        @Query('email') email?: string,
+        @Query('phone') phone?: string,
+
+        @Query('website') website?: string,
+
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        const filters: any = {
+            name,
+            sector,
+            status,
+            country,
+            location,
+            companySize,
+            email,
+            phone,
+            website,
+            startDate,
+            endDate
+        };
+
+        return this.companiesService.paginate(page, limit, filters);
     }
 
     /*
@@ -83,13 +115,21 @@ export class CompaniesController {
     |----------------------------------------------------------------------
     */
     @Patch(':id')
-    @UseInterceptors(FileInterceptor('logo'))
+    @UseInterceptors(
+        FileFieldsInterceptor([
+            { name: 'logo', maxCount: 1 },
+            { name: 'coverImage', maxCount: 1 }
+        ])
+    )
     async update(
-        @Param('id') id: string, 
-        @Body() data: UpdateCompanyDto, 
-        @UploadedFile() logo?: Express.Multer.File
+        @Param('id') id: string,
+        @Body() data: UpdateCompanyDto,
+        @UploadedFiles() files: {
+            logo?: Express.Multer.File[],
+            coverImage?: Express.Multer.File[]
+        }
     ) {
-        return this.companiesService.update(id, data, logo)
+        return this.companiesService.update(id, data, files);
     }
 
     /*

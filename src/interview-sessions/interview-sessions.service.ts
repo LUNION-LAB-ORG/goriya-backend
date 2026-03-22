@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { InterviewSession } from './interview-session.entity'
-import { InterviewStatus } from 'src/@types/enums'
+import { InterviewStatus } from '../@types/enums'
 import { UpdateInterviewSessionDto } from './dto/update-interview-session.dto'
 import { CreateInterviewSessionDto } from './dto/create-interview-session.dto'
 

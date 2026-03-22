@@ -3,10 +3,11 @@ import {
     IsEnum,
     IsArray,
     IsOptional,
-    IsUUID
+    IsUUID,
+    IsDateString
 } from "class-validator";
 
-import { JobExperienceType, JobStatus, JobType } from "src/@types/enums";
+import { JobExperienceType, JobStatus, JobType } from "../../@types/enums";
 
 export class CreateJobOfferDto {
     @IsString()
@@ -37,6 +38,12 @@ export class CreateJobOfferDto {
     @IsOptional()
     @IsEnum(JobStatus)
     status?: JobStatus;
+
+    @IsDateString()
+    publishDate: Date;
+
+    @IsDateString()
+    endDate: Date;
 
     @IsOptional()
     applicants?: number;

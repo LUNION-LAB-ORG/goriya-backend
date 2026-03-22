@@ -4,13 +4,14 @@ import * as bcrypt from 'bcrypt'
 import { v4 as uuidv4 } from 'uuid'
 import { Repository } from 'typeorm'
 import { Company } from './company.entity'
-import { User } from 'src/users/user.entity'
-import { UploadedFile } from 'src/@types/utils'
+import { User } from '../users/user.entity'
+import { UploadedFile } from '../@types/utils'
 import { InjectRepository } from '@nestjs/typeorm'
 import { CreateCompanyDto } from './dto/create-company.dto'
 import { UpdateCompanyDto } from './dto/update-company.dto'
-import { CompanyStatus, UserRole, UserStatus } from 'src/@types/enums'
+import { CompanyStatus, UserRole, UserStatus } from '../@types/enums'
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { JwtService } from '@nestjs/jwt'
 
 @Injectable()
 export class CompaniesService {
@@ -20,6 +21,8 @@ export class CompaniesService {
 
         @InjectRepository(User)
         private readonly userRepository: Repository<User>,
+
+        private readonly jwtService: JwtService, // 🔥 AJOUT
     ) { }
 
     private readonly allowedImageTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
@@ -30,46 +33,111 @@ export class CompaniesService {
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateCompanyDto, logo?: UploadedFile): Promise<Company> {
-
+    async create(data: CreateCompanyDto, files?: {
+        logo?: UploadedFile[],
+        coverImage?: UploadedFile[]
+    }) {
+    
         const queryRunner = this.companyRepository.manager.connection.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
-
+    
         try {
             // -------------------------
-            // 1. CREATE COMPANY
+            // 1. HANDLE FILES
             // -------------------------
-            const companyData: Partial<Company> = { ...data };
-
-            if (logo) {
-                companyData.logo = await this.handleLogoUpload(logo);
+            let logoPath: string | undefined;
+            let coverPath: string | undefined;
+    
+            if (files?.logo?.[0]) {
+                logoPath = await this.handleLogoUpload(files.logo[0]);
             }
-
-            const company = queryRunner.manager.create(Company, companyData);
+    
+            if (files?.coverImage?.[0]) {
+                coverPath = await this.handleLogoUpload(files.coverImage[0]);
+            }
+    
+            // -------------------------
+            // 2. PARSE SOCIAL LINKS
+            // -------------------------
+            let socialLinks: string[] = [];
+    
+            if (data.socialLinks) {
+                socialLinks = typeof data.socialLinks === 'string'
+                    ? JSON.parse(data.socialLinks)
+                    : data.socialLinks;
+            }
+    
+            // -------------------------
+            // 3. CREATE COMPANY (MAPPING CLEAN)
+            // -------------------------
+            const company = queryRunner.manager.create(Company, {
+                name: data.companyName,
+                sector: data.sector,
+                about: data.about,
+                creationDate: data.creationDate,
+                companySize: data.companySize,
+                website: data.website,
+                socialLinks,
+                country: data.country,
+                headquarters: data.headquarters,
+                location: data.location,
+                phone: data.phone,
+                email: data.email,
+                status: data.status ?? CompanyStatus.ACTIVE,
+                partnershipDate: data.partnershipDate,
+    
+                logo: logoPath,
+                coverImage: coverPath,
+            });
+    
             const savedCompany = await queryRunner.manager.save(company);
-
+    
             // -------------------------
-            // 2. CREATE USER ENTERPRISE
+            // 4. CREATE ADMIN USER
             // -------------------------
+            if (!data.email || !data.password) {
+                throw new BadRequestException('Admin email and password are required');
+            }
+    
+            const saltRounds = Number(process.env.SALT_ROUNDS) || 10;
+            const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+    
             const enterpriseUser = queryRunner.manager.create(User, {
-                name: data.name, // ou un champ spécifique (ex: adminName)
-                email: `admin@${data.name.toLowerCase().replace(/\s+/g, '')}.com`, // ⚠️ à améliorer
-                password: await bcrypt.hash('Password123', 10), // ⚠️ à remplacer en prod
+                name: data.companyName,
+                email: data.email,
+                password: hashedPassword,
                 role: UserRole.ENTERPRISE,
                 status: UserStatus.ACTIVE,
                 company: savedCompany,
+                registrationDate: new Date(),
             });
 
-            await queryRunner.manager.save(enterpriseUser);
+    
+            const savedUser = await queryRunner.manager.save(enterpriseUser);
 
+            // -------------------------
+            // GENERATE TOKEN 🔥
+            // -------------------------
+            const payload = {
+                sub: savedUser.id,
+                email: savedUser.email,
+                role: savedUser.role,
+            };
+
+            const accessToken = this.jwtService.sign(payload);
+    
             // -------------------------
             // COMMIT
             // -------------------------
             await queryRunner.commitTransaction();
-
-            return savedCompany;
-
+    
+            return {
+                company: savedCompany,
+                user: savedUser,
+                accessToken,
+            };
+    
         } catch (error) {
             await queryRunner.rollbackTransaction();
             throw error;
@@ -83,17 +151,35 @@ export class CompaniesService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateCompanyDto, logo?: UploadedFile): Promise<Company> {
-        const company = await this.findOne(id)
-
-        // Si un nouveau logo est fourni, on supprime l'ancien et on remplace
-        if (logo) {
-            if (company.logo) this.deleteLogoFile(company.logo)
-            company.logo = await this.handleLogoUpload(logo)
+    async update(id: string, data: UpdateCompanyDto, files?: {
+        logo?: UploadedFile[],
+        coverImage?: UploadedFile[]
+    }): Promise<Company> {
+    
+        const company = await this.findOne(id);
+    
+        if (files?.logo?.[0]) {
+            if (company.logo) this.deleteLogoFile(company.logo);
+            company.logo = await this.handleLogoUpload(files.logo[0]);
         }
-
-        Object.assign(company, data)
-        return await this.companyRepository.save(company)
+    
+        if (files?.coverImage?.[0]) {
+            if (company.coverImage) this.deleteLogoFile(company.coverImage);
+            company.coverImage = await this.handleLogoUpload(files.coverImage[0]);
+        }
+    
+        if (data.socialLinks) {
+            data.socialLinks = typeof data.socialLinks === 'string'
+                ? JSON.parse(data.socialLinks)
+                : data.socialLinks;
+        }
+    
+        Object.assign(company, {
+            ...data,
+            name: data.companyName ?? company.name
+        });
+    
+        return await this.companyRepository.save(company);
     }
 
     /*
@@ -136,13 +222,13 @@ export class CompaniesService {
     |--------------------------------------------------------------------------
     */
     async findAll(): Promise<Company[]> {
-        return await this.companyRepository.find({ relations: ['jobOffers'] })
+        return await this.companyRepository.find({ relations: ['jobOffers', 'users'] })
     }
 
     async findOne(id: string): Promise<Company> {
         const company = await this.companyRepository.findOne({
             where: { id },
-            relations: ['jobOffers']
+            relations: ['jobOffers', 'users']
         })
         if (!company) throw new NotFoundException('Company not found')
         return company
@@ -151,6 +237,7 @@ export class CompaniesService {
     async remove(id: string): Promise<{ message: string }> {
         const company = await this.findOne(id)
         if (company.logo) this.deleteLogoFile(company.logo)
+        if (company.coverImage) this.deleteLogoFile(company.coverImage)
         await this.companyRepository.remove(company)
         return { message: 'Company deleted successfully' }
     }
@@ -158,29 +245,95 @@ export class CompaniesService {
     async paginate(
         page: number = 1,
         limit: number = 10,
-        filters?: {
-            name?: string
-            sector?: string
-            status?: CompanyStatus
-            partnershipDate?: string
-        }
+        filters?: any
     ) {
-        const query = this.companyRepository.createQueryBuilder('company')
-            .leftJoinAndSelect('company.jobOffers', 'jobOffers')
-
-        if (filters) {
-            if (filters.name) query.andWhere('company.name ILIKE :name', { name: `%${filters.name}%` })
-            if (filters.sector) query.andWhere('company.sector ILIKE :sector', { sector: `%${filters.sector}%` })
-            if (filters.status) query.andWhere('company.status = :status', { status: filters.status })
-            if (filters.partnershipDate) query.andWhere('DATE(company.partnershipDate) = :date', { date: filters.partnershipDate })
+        const query = this.companyRepository
+            .createQueryBuilder('company')
+            .leftJoinAndSelect('company.jobOffers', 'jobOffers');
+    
+        // 🔍 TEXT SEARCH (ILIKE)
+        if (filters?.name) {
+            query.andWhere('company.name ILIKE :name', {
+                name: `%${filters.name}%`
+            });
         }
-
-        query.orderBy('company.partnershipDate', 'DESC')
+    
+        if (filters?.sector) {
+            query.andWhere('company.sector ILIKE :sector', {
+                sector: `%${filters.sector}%`
+            });
+        }
+    
+        if (filters?.country) {
+            query.andWhere('company.country ILIKE :country', {
+                country: `%${filters.country}%`
+            });
+        }
+    
+        if (filters?.location) {
+            query.andWhere('company.location ILIKE :location', {
+                location: `%${filters.location}%`
+            });
+        }
+    
+        if (filters?.companySize) {
+            query.andWhere('company.companySize = :companySize', {
+                companySize: filters.companySize
+            });
+        }
+    
+        if (filters?.email) {
+            query.andWhere('company.email ILIKE :email', {
+                email: `%${filters.email}%`
+            });
+        }
+    
+        if (filters?.phone) {
+            query.andWhere('company.phone ILIKE :phone', {
+                phone: `%${filters.phone}%`
+            });
+        }
+    
+        if (filters?.website) {
+            query.andWhere('company.website ILIKE :website', {
+                website: `%${filters.website}%`
+            });
+        }
+    
+        // 🎯 ENUM
+        if (filters?.status) {
+            query.andWhere('company.status = :status', {
+                status: filters.status
+            });
+        }
+    
+        // 📅 DATE RANGE (important)
+        if (filters?.startDate && filters?.endDate) {
+            query.andWhere(
+                'company.partnershipDate BETWEEN :startDate AND :endDate',
+                {
+                    startDate: filters.startDate,
+                    endDate: filters.endDate
+                }
+            );
+        } else if (filters?.startDate) {
+            query.andWhere('company.partnershipDate >= :startDate', {
+                startDate: filters.startDate
+            });
+        } else if (filters?.endDate) {
+            query.andWhere('company.partnershipDate <= :endDate', {
+                endDate: filters.endDate
+            });
+        }
+    
+        // 📊 ORDER + PAGINATION
+        query
+            .orderBy('company.createdAt', 'DESC') // 🔥 mieux que partnershipDate
             .skip((page - 1) * limit)
-            .take(limit)
-
-        const [data, total] = await query.getManyAndCount()
-
+            .take(limit);
+    
+        const [data, total] = await query.getManyAndCount();
+    
         return {
             data,
             meta: {
@@ -189,6 +342,6 @@ export class CompaniesService {
                 limit,
                 totalPages: Math.ceil(total / limit)
             }
-        }
+        };
     }
 }

@@ -12,8 +12,8 @@ import {
 import { CandidaturesService } from './candidatures.service'
 import { CreateCandidatureDto } from './dto/create-candidature.dto'
 import { UpdateCandidatureDto } from './dto/update-candidature.dto'
-import { CandidatureStatus } from 'src/@types/enums'
-import { Public } from 'src/auth/public.decorator'
+import { CandidatureStatus } from '../@types/enums'
+import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('candidatures')
