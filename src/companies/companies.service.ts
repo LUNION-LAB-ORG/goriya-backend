@@ -10,7 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm'
 import { CreateCompanyDto } from './dto/create-company.dto'
 import { UpdateCompanyDto } from './dto/update-company.dto'
 import { CompanyStatus, UserRole, UserStatus } from '../@types/enums'
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 
 @Injectable()
@@ -33,44 +33,41 @@ export class CompaniesService {
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateCompanyDto, files?: {
-        logo?: UploadedFile[],
-        coverImage?: UploadedFile[]
-    }) {
-    
+    async create(data: CreateCompanyDto, files?: { logo?: UploadedFile[], coverImage?: UploadedFile[] }) {
         const queryRunner = this.companyRepository.manager.connection.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
     
         try {
-            // -------------------------
-            // 1. HANDLE FILES
-            // -------------------------
+            // 1. Handle files safely
             let logoPath: string | undefined;
             let coverPath: string | undefined;
     
-            if (files?.logo?.[0]) {
-                logoPath = await this.handleLogoUpload(files.logo[0]);
+            try {
+                if (files?.logo?.[0]) logoPath = await this.handleLogoUpload(files.logo[0]);
+                if (files?.coverImage?.[0]) coverPath = await this.handleLogoUpload(files.coverImage[0]);
+            } catch (fileErr) {
+                console.error('Erreur upload fichiers:', fileErr);
+                throw new BadRequestException('Erreur lors du traitement des fichiers');
             }
     
-            if (files?.coverImage?.[0]) {
-                coverPath = await this.handleLogoUpload(files.coverImage[0]);
-            }
-    
-            // -------------------------
-            // 2. PARSE SOCIAL LINKS
-            // -------------------------
+            // 2. Parse socialLinks safely
             let socialLinks: string[] = [];
-    
             if (data.socialLinks) {
-                socialLinks = typeof data.socialLinks === 'string'
-                    ? JSON.parse(data.socialLinks)
-                    : data.socialLinks;
+                try {
+                    socialLinks = typeof data.socialLinks === 'string'
+                        ? JSON.parse(data.socialLinks)
+                        : data.socialLinks;
+                } catch {
+                    throw new BadRequestException('socialLinks mal formé');
+                }
             }
     
-            // -------------------------
-            // 3. CREATE COMPANY (MAPPING CLEAN)
-            // -------------------------
+            // 3. Validate required fields
+            if (!data.companyName) throw new BadRequestException('companyName requis');
+            if (!data.email || !data.password) throw new BadRequestException('email et password requis');
+    
+            // 4. Create company
             const company = queryRunner.manager.create(Company, {
                 name: data.companyName,
                 sector: data.sector,
@@ -86,20 +83,13 @@ export class CompaniesService {
                 email: data.email,
                 status: data.status ?? CompanyStatus.ACTIVE,
                 partnershipDate: data.partnershipDate,
-    
                 logo: logoPath,
                 coverImage: coverPath,
             });
     
             const savedCompany = await queryRunner.manager.save(company);
     
-            // -------------------------
-            // 4. CREATE ADMIN USER
-            // -------------------------
-            if (!data.email || !data.password) {
-                throw new BadRequestException('Admin email and password are required');
-            }
-    
+            // 5. Create enterprise user
             const saltRounds = Number(process.env.SALT_ROUNDS) || 10;
             const hashedPassword = await bcrypt.hash(data.password, saltRounds);
     
@@ -112,35 +102,21 @@ export class CompaniesService {
                 company: savedCompany,
                 registrationDate: new Date(),
             });
-
     
             const savedUser = await queryRunner.manager.save(enterpriseUser);
-
-            // -------------------------
-            // GENERATE TOKEN 🔥
-            // -------------------------
-            const payload = {
-                sub: savedUser.id,
-                email: savedUser.email,
-                role: savedUser.role,
-            };
-
+    
+            // 6. Generate token
+            const payload = { sub: savedUser.id, email: savedUser.email, role: savedUser.role };
             const accessToken = this.jwtService.sign(payload);
     
-            // -------------------------
-            // COMMIT
-            // -------------------------
             await queryRunner.commitTransaction();
     
-            return {
-                company: savedCompany,
-                user: savedUser,
-                accessToken,
-            };
+            return { company: savedCompany, user: savedUser, accessToken };
     
         } catch (error) {
             await queryRunner.rollbackTransaction();
-            throw error;
+            console.error('CREATE COMPANY ERROR:', error);
+            throw new InternalServerErrorException(error.message || 'Erreur interne lors de la création');
         } finally {
             await queryRunner.release();
         }
