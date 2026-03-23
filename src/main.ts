@@ -10,7 +10,7 @@ async function bootstrap() {
     app.enableCors({
         origin: [
             'https://goriya-entreprise.vercel.app', 
-            'http://localhost:3000'
+            'http://localhost:3000',
         ],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
