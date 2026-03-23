@@ -1,43 +1,37 @@
 # ================================================================================
-# Stage 1: Builder - Compile avec toutes les dépendances
+# Stage 1: Builder - Compile avec toutes les dependances
 # ================================================================================
 FROM node:22-alpine AS builder
 
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 WORKDIR /app
 
 # Copier les fichiers de dépendances
-COPY package.json pnpm-lock.yaml ./
+COPY package.json yarn.lock ./
 
-# Installer TOUTES les dépendances (y compris @nestjs/cli)
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+# Installer TOUTES les dependances (y compris @nestjs/cli)
+RUN yarn install --frozen-lockfile
 
 # Copier le code source
 COPY . .
 
 # Build de l'application
-RUN pnpm run build
+RUN yarn build
 
 # ================================================================================
 # Stage 2: Production Dependencies - Installer uniquement les deps de prod
 # ================================================================================
 FROM node:22-alpine AS prod-deps
 
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json yarn.lock ./
 
 # Installer uniquement les dépendances de production
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --prod --frozen-lockfile
+RUN yarn install --frozen-lockfile --production=true
 
 # ================================================================================
 # Stage 3: Production - Image finale optimisée
@@ -50,8 +44,6 @@ RUN apk add --no-cache \
     postgresql-client \
     dumb-init
 
-ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
 WORKDIR /app
