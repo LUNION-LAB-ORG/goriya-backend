@@ -63,9 +63,7 @@ COPY --chown=nestjs:nodejs package.json ./
 
 USER nestjs
 
-# EXPOSE 8080 par :
-ENV PORT 8080
-EXPOSE $PORT
+EXPOSE 8081
 
 ENV NODE_ENV=production
 CMD ["node", "dist/main"]

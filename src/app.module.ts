@@ -4,19 +4,17 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller'
-import { UsersModule } from './users/users.module';
 import { databaseConfig } from './config/database.config';
-import { DashboardModule } from './dashboard/dashboard.module';
+import { UsersModule } from './users/users.module';
 import { CompaniesModule } from './companies/companies.module';
 import { JobOffersModule } from './job-offers/job-offers.module';
-import { PortfoliosModule } from './portfolios/portfolios.module';
-import { CVAnalysisModule } from './cv-analysis/cv-analysis.module';
-import { ScoringResultsModule } from './scoring/scoring-results.module';
 import { CandidaturesModule } from './candidatures/candidatures.module';
-import { CalendarEventsModule } from './calendar-events/calendar-events.module';
+import { PortfoliosModule } from './portfolios/portfolios.module';
 import { MatchingResultsModule } from './matching-results/matching-results.module';
+import { ScoringResultsModule } from './scoring/scoring-results.module';
+import { CVAnalysisModule } from './cv-analysis/cv-analysis.module';
 import { InterviewSessionsModule } from './interview-sessions/interview-sessions.module';
-import { AnalyticsModule } from './analytics/analytics.module';
+import { CalendarEventsModule } from './calendar-events/calendar-events.module';
 
 @Module({
     imports: [
@@ -36,8 +34,6 @@ import { AnalyticsModule } from './analytics/analytics.module';
         CVAnalysisModule,
         InterviewSessionsModule,
         CalendarEventsModule,
-        DashboardModule,
-        AnalyticsModule,
     ],
     controllers: [AppController],
     providers: [AppService],
