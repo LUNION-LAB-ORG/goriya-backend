@@ -118,6 +118,19 @@ export class CompaniesService {
         } catch (error) {
             await queryRunner.rollbackTransaction();
             console.error('CREATE COMPANY ERROR:', error);
+
+            if (error.code === '23505') { // PostgreSQL unique violation
+                if (error.detail.includes('email')) {
+                    throw new BadRequestException('Cette adresse email est déjà utilisée');
+                }
+                if (error.detail.includes('name')) { // 🔹 change companyName → name
+                    throw new BadRequestException('Le nom de l’entreprise est déjà utilisé');
+                }
+                if (error.detail.includes('phone')) {
+                    throw new BadRequestException('Ce numéro de téléphone est déjà utilisé');
+                }
+                throw new BadRequestException('Valeur unique déjà utilisée');
+            }
             
             if (error instanceof BadRequestException) throw error;
 
