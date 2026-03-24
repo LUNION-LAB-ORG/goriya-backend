@@ -59,7 +59,8 @@ export class JobOffersService {
             }
 
             // throw new InternalServerErrorException('Erreur interne lors de la création du JobOffer');
-            throw error;
+            // Pour toutes les autres erreurs, on peut aussi relayer un message clair
+            throw new BadRequestException(error.message || 'Erreur inconnue');
         }
     }
 
