@@ -27,7 +27,7 @@ export class JobOffer {
     @Column({ type: "enum", enum: JobType })
     type: JobType;
 
-    @Column({ type: "enum", enum: JobType })
+    @Column({ type: "enum", enum: JobExperienceType })
     experience: JobExperienceType;
 
     @Column()
