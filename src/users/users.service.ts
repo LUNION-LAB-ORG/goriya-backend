@@ -24,7 +24,7 @@ export class UsersService {
     ) {}
 
     private readonly allowedFileTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
-    private readonly uploadDir = path.join(__dirname, '../../storage/avatars')
+    private readonly uploadDir = path.join('/tmp/uploads/avatars')
 
     /*
     |--------------------------------------------------------------------------
@@ -45,7 +45,7 @@ export class UsersService {
         const filePath = path.join(this.uploadDir, fileName)
 
         fs.writeFileSync(filePath, file.buffer)
-        return `/storage/avatars/${fileName}`
+        return `/avatars/${fileName}`
     }
 
     private deleteFile(filePath: string) {
@@ -121,6 +121,18 @@ export class UsersService {
         if (!user) throw new NotFoundException('User not found')
 
         return user
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | FIND ONE BY EMAIL WITH PASSWORD
+    |--------------------------------------------------------------------------
+    */
+    async findByEmailWithPassword(email: string): Promise<User | null> {
+        return await this.userRepository.findOne({
+            where: { email },
+            select: ['id', 'email', 'password', 'role', 'status', 'name'], // ⚠️ important
+        });
     }
 
     /*

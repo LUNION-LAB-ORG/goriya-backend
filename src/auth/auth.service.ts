@@ -14,24 +14,32 @@ export class AuthService {
     ) { }
 
     async validateUser(email: string, password: string): Promise<User> {
-        const user = await this.usersService.findAll().then(users =>
-            users.find(u => u.email === email),
-        );
-        if (!user) throw new UnauthorizedException('Invalid credentials');
-
-        const passwordMatch = await bcrypt.compare(password, user.password);
-        if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
-
+        const user = await this.usersService.findByEmailWithPassword(email);
+    
+        if (!user) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+    
+        const passwordMatch = await bcrypt.compare(password, user.password);    
+        if (!passwordMatch) {
+            throw new UnauthorizedException('Invalid credentials');
+        }
+    
         return user;
     }
 
     async login(email: string, password: string) {
         const user = await this.validateUser(email, password);
+    
         const payload = { sub: user.id, email: user.email, role: user.role };
         const token = this.jwtService.sign(payload);
+    
+        // 🔥 récupérer le user complet (sans password grâce à @Exclude)
+        const fullUser = await this.usersService.findOne(user.id);
+    
         return {
             access_token: token,
-            user,
+            user: fullUser,
         };
     }
 

@@ -26,7 +26,7 @@ export class CompaniesService {
     ) { }
 
     private readonly allowedImageTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
-    private readonly uploadDir = path.join(__dirname, '../../storage/companies')
+    private readonly uploadDir = path.join('/tmp/uploads/companies')
 
     /*
     |--------------------------------------------------------------------------
@@ -110,12 +110,17 @@ export class CompaniesService {
             const accessToken = this.jwtService.sign(payload);
     
             await queryRunner.commitTransaction();
+
+            const { password: _, ...safeUser } = savedUser;
     
-            return { company: savedCompany, user: savedUser, accessToken };
+            return { company: savedCompany, user: safeUser, accessToken };
     
         } catch (error) {
             await queryRunner.rollbackTransaction();
             console.error('CREATE COMPANY ERROR:', error);
+            
+            if (error instanceof BadRequestException) throw error;
+
             throw new InternalServerErrorException(error.message || 'Erreur interne lors de la création');
         } finally {
             await queryRunner.release();
@@ -177,7 +182,7 @@ export class CompaniesService {
         const filePath = path.join(this.uploadDir, fileName)
 
         fs.writeFileSync(filePath, file.buffer)
-        return `/storage/companies/${fileName}` // chemin stocké dans la DB
+        return `/companies/${fileName}` // chemin stocké dans la DB
     }
 
     /*
