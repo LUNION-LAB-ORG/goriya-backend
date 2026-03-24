@@ -58,7 +58,8 @@ export class JobOffersService {
                 throw new BadRequestException('Données invalides pour créer le JobOffer');
             }
 
-            throw new InternalServerErrorException('Erreur interne lors de la création du JobOffer');
+            // throw new InternalServerErrorException('Erreur interne lors de la création du JobOffer');
+            throw error;
         }
     }
 
