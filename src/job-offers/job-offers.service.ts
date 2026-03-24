@@ -35,7 +35,9 @@ export class JobOffersService {
             // Crée l'entité JobOffer
             const jobOffer = this.jobOfferRepository.create({
                 ...data,
-                company, // Si tu as une relation ManyToOne
+                publishDate: new Date(data.publishDate),
+                endDate: new Date(data.endDate),
+                company,
             });
 
             // Sauvegarde dans la DB
