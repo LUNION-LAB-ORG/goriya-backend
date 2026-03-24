@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm'
+import { QueryFailedError, Repository } from 'typeorm'
 import { JobOffer } from './job-offer.entity'
 import { InjectRepository } from '@nestjs/typeorm'
 import { JobStatus, JobType } from '../@types/enums'
@@ -44,6 +44,14 @@ export class JobOffersService {
             return await this.jobOfferRepository.save(jobOffer);
         } catch (error) {
             console.error('Erreur création JobOffer:', error);
+
+            // Si c'est une erreur PostgreSQL / TypeORM
+            if (error instanceof QueryFailedError) {
+                // QueryFailedError vient de typeorm
+                console.error('Query SQL :', (error as any).query);
+                console.error('Parameters :', (error as any).parameters);
+                throw new BadRequestException(`Erreur base de données : ${(error as any).message}`);
+            }
 
             // Gestion des erreurs spécifiques
             if (error.name === 'QueryFailedError') {
