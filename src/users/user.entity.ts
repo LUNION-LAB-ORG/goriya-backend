@@ -7,7 +7,7 @@ import {
     ManyToOne,
     UpdateDateColumn
 } from "typeorm";
-
+import { Exclude } from 'class-transformer';
 import { Portfolio } from "../portfolios/portfolio.entity";
 import { Candidature } from "../candidatures/candidature.entity";
 import { UserRole, UserStatus } from "../@types/enums";
