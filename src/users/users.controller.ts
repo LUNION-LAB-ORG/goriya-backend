@@ -9,15 +9,14 @@ import {
     Query, 
     UploadedFile, 
     UseInterceptors, 
-    ParseIntPipe, 
-    UseGuards
+    ParseIntPipe
 } from '@nestjs/common'
-import { FileInterceptor } from '@nestjs/platform-express'
 import { UsersService } from './users.service'
+import { Public } from '../auth/public.decorator'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
+import { FileInterceptor } from '@nestjs/platform-express'
 import { CompanyStatus, UserRole, UserStatus } from '../@types/enums'
-import { Public } from '../auth/public.decorator'
 
 @Public()
 @Controller('users')
