@@ -58,9 +58,9 @@ export class JobOffersService {
                 throw new BadRequestException('Données invalides pour créer le JobOffer');
             }
 
-            // throw new InternalServerErrorException('Erreur interne lors de la création du JobOffer');
+            throw new InternalServerErrorException('Erreur interne lors de la création du JobOffer');
             // Pour toutes les autres erreurs, on peut aussi relayer un message clair
-            throw new BadRequestException(error.message || 'Erreur inconnue');
+            // throw new BadRequestException(error.message || 'Erreur inconnue');
         }
     }
 
