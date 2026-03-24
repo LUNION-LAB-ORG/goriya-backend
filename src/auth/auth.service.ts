@@ -28,8 +28,7 @@ export class AuthService {
 
         if (user.status === UserStatus.INACTIVE) {
             throw new UnauthorizedException('Compte bloqué. Vous n\'êtes pas autorisé à vous connecter. Veuillez contacter l\'administrateur.');
-        }
-
+        }        
         return user;
     }
 
