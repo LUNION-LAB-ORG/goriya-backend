@@ -9,11 +9,11 @@ import {
     Query, 
     ParseIntPipe 
 } from '@nestjs/common'
+import { Public } from '../auth/public.decorator'
+import { JobStatus, JobType } from '../@types/enums'
 import { JobOffersService } from './job-offers.service'
 import { UpdateJobOfferDto } from './dto/update-job-offer.dto'
-import { CreatePortfolioDto } from '../portfolios/dto/create-portfolio.dto'
-import { JobStatus, JobType } from '../@types/enums'
-import { Public } from '../auth/public.decorator'
+import { CreateJobOfferDto } from './dto/create-job-offer.dto'
 
 @Public()
 @Controller('job-offers')
@@ -26,7 +26,7 @@ export class JobOffersController {
     |----------------------------------------------------------------------
     */
     @Post()
-    async create(@Body() data: CreatePortfolioDto) {
+    async create(@Body() data: CreateJobOfferDto) {
         return this.jobOffersService.create(data)
     }
 

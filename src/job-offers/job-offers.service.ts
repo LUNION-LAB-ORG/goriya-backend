@@ -1,16 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { JobOffer } from './job-offer.entity'
+import { InjectRepository } from '@nestjs/typeorm'
 import { JobStatus, JobType } from '../@types/enums'
+import { Company } from '../companies/company.entity'
 import { UpdateJobOfferDto } from './dto/update-job-offer.dto'
-import { CreatePortfolioDto } from '../portfolios/dto/create-portfolio.dto'
+import { CreateJobOfferDto } from './dto/create-job-offer.dto'
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common'
 
 @Injectable()
 export class JobOffersService {
     constructor(
         @InjectRepository(JobOffer)
         private readonly jobOfferRepository: Repository<JobOffer>,
+
+        @InjectRepository(Company)
+        private readonly companyRepository: Repository<Company>,
     ) {}
 
     /*
@@ -18,9 +22,34 @@ export class JobOffersService {
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreatePortfolioDto): Promise<JobOffer> {
-        const jobOffer = this.jobOfferRepository.create(data)
-        return await this.jobOfferRepository.save(jobOffer)
+    async create(data: CreateJobOfferDto): Promise<JobOffer> {
+        try {
+            // Vérifie si la company existe
+            const company = await this.companyRepository.findOne({
+                where: { id: data.companyId },
+            });
+            if (!company) {
+                throw new NotFoundException(`Company with id ${data.companyId} not found`);
+            }
+
+            // Crée l'entité JobOffer
+            const jobOffer = this.jobOfferRepository.create({
+                ...data,
+                company, // Si tu as une relation ManyToOne
+            });
+
+            // Sauvegarde dans la DB
+            return await this.jobOfferRepository.save(jobOffer);
+        } catch (error) {
+            console.error('Erreur création JobOffer:', error);
+
+            // Gestion des erreurs spécifiques
+            if (error.name === 'QueryFailedError') {
+                throw new BadRequestException('Données invalides pour créer le JobOffer');
+            }
+
+            throw new InternalServerErrorException('Erreur interne lors de la création du JobOffer');
+        }
     }
 
     /*
@@ -54,9 +83,31 @@ export class JobOffersService {
     |--------------------------------------------------------------------------
     */
     async update(id: string, data: UpdateJobOfferDto): Promise<JobOffer> {
-        const jobOffer = await this.findOne(id)
-        Object.assign(jobOffer, data)
-        return await this.jobOfferRepository.save(jobOffer)
+        try {
+            // Vérifie que le JobOffer existe
+            const jobOffer = await this.findOne(id);
+            if (!jobOffer) {
+                throw new NotFoundException(`JobOffer with id ${id} not found`);
+            }
+    
+            // Met à jour les propriétés
+            Object.assign(jobOffer, data);
+    
+            // Sauvegarde dans la DB
+            return await this.jobOfferRepository.save(jobOffer);
+        } catch (error) {
+            console.error(`Erreur lors de la mise à jour du JobOffer ${id}:`, error);
+    
+            if (error.name === 'QueryFailedError') {
+                throw new BadRequestException('Données invalides pour mettre à jour le JobOffer');
+            }
+    
+            if (error instanceof NotFoundException) {
+                throw error; // On relaie les NotFoundException
+            }
+    
+            throw new InternalServerErrorException('Erreur interne lors de la mise à jour du JobOffer');
+        }
     }
 
     /*
