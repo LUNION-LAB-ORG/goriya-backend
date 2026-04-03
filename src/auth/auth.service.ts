@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { User } from '../users/user.entity';
+import { UserStatus } from '../@types/enums';
 
 @Injectable()
 export class AuthService {
@@ -24,7 +25,11 @@ export class AuthService {
         if (!passwordMatch) {
             throw new UnauthorizedException('Invalid credentials');
         }
-    
+
+        if (user.status === UserStatus.INACTIVE) {
+            throw new UnauthorizedException('Compte bloqué. Vous n\'êtes pas autorisé à vous connecter. Veuillez contacter l\'administrateur.');
+        }
+
         return user;
     }
 
