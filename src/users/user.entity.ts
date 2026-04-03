@@ -45,7 +45,7 @@ export class User {
     @Column({ nullable: true })
     avatar: string;
 
-    @Column({ name: 'registration_date' })
+    @Column({ name: 'registration_date', default: () => 'CURRENT_TIMESTAMP' })
     registrationDate: Date;
 
     // 🔥 AJOUT ICI
