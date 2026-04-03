@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Portfolio } from './portfolio.entity'
@@ -36,8 +36,14 @@ export class PortfoliosService {
     |--------------------------------------------------------------------------
     */
     async create(data: CreatePortfolioDto): Promise<PortfolioVm> {
-        const portfolio = this.portfolioRepository.create(data)
-        return this.toVm(await this.portfolioRepository.save(portfolio))
+        try {
+            const portfolio = this.portfolioRepository.create(data)
+            return this.toVm(await this.portfolioRepository.save(portfolio))
+        } catch (error) {
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la création');
+        }
     }
 
     /*
@@ -67,10 +73,17 @@ export class PortfoliosService {
     |--------------------------------------------------------------------------
     */
     async update(id: string, data: UpdatePortfolioDto): Promise<PortfolioVm> {
-        const portfolio = await this.portfolioRepository.findOne({ where: { id }, relations: ['user'] })
-        if (!portfolio) throw new NotFoundException('Portfolio not found')
-        Object.assign(portfolio, data)
-        return this.toVm(await this.portfolioRepository.save(portfolio))
+        try {
+            const portfolio = await this.portfolioRepository.findOne({ where: { id }, relations: ['user'] })
+            if (!portfolio) throw new NotFoundException('Portfolio not found')
+            Object.assign(portfolio, data)
+            return this.toVm(await this.portfolioRepository.save(portfolio))
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la mise à jour');
+        }
     }
 
     /*
@@ -79,10 +92,15 @@ export class PortfoliosService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const portfolio = await this.portfolioRepository.findOne({ where: { id } })
-        if (!portfolio) throw new NotFoundException('Portfolio not found')
-        await this.portfolioRepository.remove(portfolio)
-        return { message: 'Portfolio deleted successfully' }
+        try {
+            const portfolio = await this.portfolioRepository.findOne({ where: { id } })
+            if (!portfolio) throw new NotFoundException('Portfolio not found')
+            await this.portfolioRepository.remove(portfolio)
+            return { message: 'Portfolio deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     /*

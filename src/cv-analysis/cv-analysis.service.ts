@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CVAnalysis } from './cv-analysis.entity'
@@ -76,13 +76,19 @@ export class CVAnalysisService {
     |--------------------------------------------------------------------------
     */
     async create(data: CreateCvAnalysisDto, file: UploadedFile): Promise<CVAnalysisVm> {
-        const fileName = await this.handleFileUpload(file)
+        try {
+            const fileName = await this.handleFileUpload(file)
 
-        const cv = this.cvAnalysisRepository.create({
-            ...data,
-            fileName: fileName
-        })
-        return this.toVm(await this.cvAnalysisRepository.save(cv))
+            const cv = this.cvAnalysisRepository.create({
+                ...data,
+                fileName: fileName
+            })
+            return this.toVm(await this.cvAnalysisRepository.save(cv))
+
+        } catch (error) {
+            if (error instanceof BadRequestException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la création');
+        }
     }
 
     /*
@@ -91,23 +97,30 @@ export class CVAnalysisService {
     |--------------------------------------------------------------------------
     */
     async update(id: string, data: UpdateCvAnalysisDto, file?: UploadedFile): Promise<CVAnalysisVm> {
-        const cv = await this.cvAnalysisRepository.findOne({ where: { id } })
-        if (!cv) throw new NotFoundException('CVAnalysis not found')
+        try {
+            const cv = await this.cvAnalysisRepository.findOne({ where: { id } })
+            if (!cv) throw new NotFoundException('CVAnalysis not found')
 
-        // Gestion du nouveau fichier uploadé
-        if (file) {
-            // Supprimer l'ancien fichier si nécessaire
-            if (cv.fileName) {
-                await this.deleteFile(cv.fileName); // ta méthode existante pour supprimer le fichier
+            // Gestion du nouveau fichier uploadé
+            if (file) {
+                // Supprimer l'ancien fichier si nécessaire
+                if (cv.fileName) {
+                    await this.deleteFile(cv.fileName);
+                }
+
+                // Enregistrer le nouveau fichier et récupérer son nom
+                const newFileName = await this.handleFileUpload(file);
+                cv.fileName = newFileName;
             }
 
-            // Enregistrer le nouveau fichier et récupérer son nom
-            const newFileName = await this.handleFileUpload(file); // ta méthode pour sauvegarder le fichier
-            cv.fileName = newFileName; // Mettre à jour le fileName
-        }
+            Object.assign(cv, data)
+            return this.toVm(await this.cvAnalysisRepository.save(cv))
 
-        Object.assign(cv, data)
-        return this.toVm(await this.cvAnalysisRepository.save(cv))
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            if (error instanceof BadRequestException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la mise à jour');
+        }
     }
 
     /*
@@ -137,11 +150,16 @@ export class CVAnalysisService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const cv = await this.cvAnalysisRepository.findOne({ where: { id } })
-        if (!cv) throw new NotFoundException('CVAnalysis not found')
-        if (cv.fileName) this.deleteFile(cv.fileName)
-        await this.cvAnalysisRepository.remove(cv)
-        return { message: 'CVAnalysis deleted successfully' }
+        try {
+            const cv = await this.cvAnalysisRepository.findOne({ where: { id } })
+            if (!cv) throw new NotFoundException('CVAnalysis not found')
+            if (cv.fileName) this.deleteFile(cv.fileName)
+            await this.cvAnalysisRepository.remove(cv)
+            return { message: 'CVAnalysis deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     /*

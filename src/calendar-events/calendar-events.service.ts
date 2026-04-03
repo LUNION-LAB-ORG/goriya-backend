@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { CalendarEvent } from './calendar-event.entity'
@@ -35,8 +35,14 @@ export class CalendarEventsService {
     |--------------------------------------------------------------------------
     */
     async create(data: CreateCalendarEventDto): Promise<CalendarEventVm> {
-        const event = this.calendarEventRepository.create(data)
-        return this.toVm(await this.calendarEventRepository.save(event))
+        try {
+            const event = this.calendarEventRepository.create(data)
+            return this.toVm(await this.calendarEventRepository.save(event))
+        } catch (error) {
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la création');
+        }
     }
 
     /*
@@ -66,10 +72,17 @@ export class CalendarEventsService {
     |--------------------------------------------------------------------------
     */
     async update(id: string, data: UpdateCalendarEventDto): Promise<CalendarEventVm> {
-        const event = await this.calendarEventRepository.findOne({ where: { id } })
-        if (!event) throw new NotFoundException('CalendarEvent not found')
-        Object.assign(event, data)
-        return this.toVm(await this.calendarEventRepository.save(event))
+        try {
+            const event = await this.calendarEventRepository.findOne({ where: { id } })
+            if (!event) throw new NotFoundException('CalendarEvent not found')
+            Object.assign(event, data)
+            return this.toVm(await this.calendarEventRepository.save(event))
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la mise à jour');
+        }
     }
 
     /*
@@ -78,10 +91,15 @@ export class CalendarEventsService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const event = await this.calendarEventRepository.findOne({ where: { id } })
-        if (!event) throw new NotFoundException('CalendarEvent not found')
-        await this.calendarEventRepository.remove(event)
-        return { message: 'CalendarEvent deleted successfully' }
+        try {
+            const event = await this.calendarEventRepository.findOne({ where: { id } })
+            if (!event) throw new NotFoundException('CalendarEvent not found')
+            await this.calendarEventRepository.remove(event)
+            return { message: 'CalendarEvent deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     /*

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { InterviewSession } from './interview-session.entity'
@@ -36,8 +36,14 @@ export class InterviewSessionsService {
     |--------------------------------------------------------------------------
     */
     async create(data: CreateInterviewSessionDto): Promise<InterviewSessionVm> {
-        const session = this.interviewSessionRepository.create(data)
-        return this.toVm(await this.interviewSessionRepository.save(session))
+        try {
+            const session = this.interviewSessionRepository.create(data)
+            return this.toVm(await this.interviewSessionRepository.save(session))
+        } catch (error) {
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la création');
+        }
     }
 
     /*
@@ -67,10 +73,17 @@ export class InterviewSessionsService {
     |--------------------------------------------------------------------------
     */
     async update(id: string, data: UpdateInterviewSessionDto): Promise<InterviewSessionVm> {
-        const session = await this.interviewSessionRepository.findOne({ where: { id } })
-        if (!session) throw new NotFoundException('InterviewSession not found')
-        Object.assign(session, data)
-        return this.toVm(await this.interviewSessionRepository.save(session))
+        try {
+            const session = await this.interviewSessionRepository.findOne({ where: { id } })
+            if (!session) throw new NotFoundException('InterviewSession not found')
+            Object.assign(session, data)
+            return this.toVm(await this.interviewSessionRepository.save(session))
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la mise à jour');
+        }
     }
 
     /*
@@ -79,10 +92,15 @@ export class InterviewSessionsService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const session = await this.interviewSessionRepository.findOne({ where: { id } })
-        if (!session) throw new NotFoundException('InterviewSession not found')
-        await this.interviewSessionRepository.remove(session)
-        return { message: 'InterviewSession deleted successfully' }
+        try {
+            const session = await this.interviewSessionRepository.findOne({ where: { id } })
+            if (!session) throw new NotFoundException('InterviewSession not found')
+            await this.interviewSessionRepository.remove(session)
+            return { message: 'InterviewSession deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     /*

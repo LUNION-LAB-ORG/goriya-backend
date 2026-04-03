@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { JwtService } from '@nestjs/jwt'
 import { Repository } from 'typeorm'
@@ -79,46 +79,62 @@ export class UsersService {
     |--------------------------------------------------------------------------
     */
     async create(data: CreateUserDto, avatar?: UploadedFile): Promise<{ user: UserVm; accessToken: string }> {
+        try {
+            const userData: Partial<User> = { ...data }
 
-        const userData: Partial<User> = { ...data }
+            // hash password
+            const saltRounds = Number(process.env.SALT_ROUNDS) || 10
+            userData.password = await bcrypt.hash(data.password, saltRounds)
 
-        // hash password
-        const saltRounds = Number(process.env.SALT_ROUNDS) || 10
-        userData.password = await bcrypt.hash(data.password, saltRounds)
-
-        // avatar upload
-        if (avatar) {
-            userData.avatar = await this.handleAvatarUpload(avatar)
-        }
-
-        // gestion entreprise
-        let company: Company | null = null;
-
-        if (data.companyId) {
-
-            if (data.role !== UserRole.ENTERPRISE) {
-                throw new BadRequestException('Only enterprise users can have a company')
+            // avatar upload
+            if (avatar) {
+                userData.avatar = await this.handleAvatarUpload(avatar)
             }
 
-            company = await this.companyRepository.findOne({
-                where: { id: data.companyId }
-            })
+            // gestion entreprise
+            let company: Company | null = null;
 
-            if (!company) {
-                throw new NotFoundException('Company not found')
+            if (data.companyId) {
+
+                if (data.role !== UserRole.ENTERPRISE) {
+                    throw new BadRequestException('Only enterprise users can have a company')
+                }
+
+                company = await this.companyRepository.findOne({
+                    where: { id: data.companyId }
+                })
+
+                if (!company) {
+                    throw new NotFoundException('Company not found')
+                }
+
+                userData.company = company
             }
 
-            userData.company = company
+            const user = this.userRepository.create(userData)
+
+            const savedUser = await this.userRepository.save(user)
+
+            const payload = { sub: savedUser.id, email: savedUser.email, role: savedUser.role }
+            const accessToken = this.jwtService.sign(payload)
+
+            return { user: this.toVm(savedUser), accessToken }
+
+        } catch (error) {
+            const err = error as any
+
+            if (err.code === '23505') {
+                if (err.detail?.includes('email')) {
+                    throw new BadRequestException('Cette adresse email est déjà utilisée')
+                }
+                throw new BadRequestException('Valeur unique déjà utilisée')
+            }
+
+            if (error instanceof BadRequestException) throw error
+            if (error instanceof NotFoundException) throw error
+
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la création')
         }
-
-        const user = this.userRepository.create(userData)
-
-        const savedUser = await this.userRepository.save(user)
-
-        const payload = { sub: savedUser.id, email: savedUser.email, role: savedUser.role }
-        const accessToken = this.jwtService.sign(payload)
-
-        return { user: this.toVm(savedUser), accessToken }
     }
 
     /*
@@ -171,47 +187,63 @@ export class UsersService {
         data: UpdateUserDto,
         avatar?: UploadedFile
     ): Promise<UserVm> {
-
-        const user = await this.userRepository.findOne({
-            where: { id },
-            relations: ['portfolios', 'candidatures', 'company']
-        })
-
-        if (!user) throw new NotFoundException('User not found')
-
-        // hash password si présent
-        if (data.password) {
-            const saltRounds = Number(process.env.SALT_ROUNDS) || 10
-            data.password = await bcrypt.hash(data.password, saltRounds)
-        }
-
-        // avatar
-        if (avatar) {
-            if (user.avatar) this.deleteFile(user.avatar)
-            user.avatar = await this.handleAvatarUpload(avatar)
-        }
-
-        // gestion company update
-        if (data.companyId) {
-
-            if (data.role && data.role !== UserRole.ENTERPRISE) {
-                throw new BadRequestException('Only enterprise users can have a company')
-            }
-
-            const company = await this.companyRepository.findOne({
-                where: { id: data.companyId }
+        try {
+            const user = await this.userRepository.findOne({
+                where: { id },
+                relations: ['portfolios', 'candidatures', 'company']
             })
 
-            if (!company) {
-                throw new NotFoundException('Company not found')
+            if (!user) throw new NotFoundException('User not found')
+
+            // hash password si présent
+            if (data.password) {
+                const saltRounds = Number(process.env.SALT_ROUNDS) || 10
+                data.password = await bcrypt.hash(data.password, saltRounds)
             }
 
-            user.company = company
+            // avatar
+            if (avatar) {
+                if (user.avatar) this.deleteFile(user.avatar)
+                user.avatar = await this.handleAvatarUpload(avatar)
+            }
+
+            // gestion company update
+            if (data.companyId) {
+
+                if (data.role && data.role !== UserRole.ENTERPRISE) {
+                    throw new BadRequestException('Only enterprise users can have a company')
+                }
+
+                const company = await this.companyRepository.findOne({
+                    where: { id: data.companyId }
+                })
+
+                if (!company) {
+                    throw new NotFoundException('Company not found')
+                }
+
+                user.company = company
+            }
+
+            Object.assign(user, data)
+
+            return this.toVm(await this.userRepository.save(user))
+
+        } catch (error) {
+            const err = error as any
+
+            if (err.code === '23505') {
+                if (err.detail?.includes('email')) {
+                    throw new BadRequestException('Cette adresse email est déjà utilisée')
+                }
+                throw new BadRequestException('Valeur unique déjà utilisée')
+            }
+
+            if (error instanceof BadRequestException) throw error
+            if (error instanceof NotFoundException) throw error
+
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la mise à jour')
         }
-
-        Object.assign(user, data)
-
-        return this.toVm(await this.userRepository.save(user))
     }
 
     /*
@@ -220,15 +252,22 @@ export class UsersService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const user = await this.userRepository.findOne({ where: { id } })
+        try {
+            const user = await this.userRepository.findOne({ where: { id } })
 
-        if (!user) throw new NotFoundException('User not found')
+            if (!user) throw new NotFoundException('User not found')
 
-        if (user.avatar) this.deleteFile(user.avatar)
+            if (user.avatar) this.deleteFile(user.avatar)
 
-        await this.userRepository.remove(user)
+            await this.userRepository.remove(user)
 
-        return { message: 'User deleted successfully' }
+            return { message: 'User deleted successfully' }
+
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error
+
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression')
+        }
     }
 
     /*

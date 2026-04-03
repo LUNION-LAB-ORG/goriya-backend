@@ -175,32 +175,48 @@ export class CompaniesService {
         logo?: UploadedFile[],
         coverImage?: UploadedFile[]
     }): Promise<CompanyVm> {
-    
-        const company = await this.companyRepository.findOne({ where: { id } });
-        if (!company) throw new NotFoundException('Company not found');
-    
-        if (files?.logo?.[0]) {
-            if (company.logo) this.deleteLogoFile(company.logo);
-            company.logo = await this.handleLogoUpload(files.logo[0]);
+        try {
+            const company = await this.companyRepository.findOne({ where: { id } });
+            if (!company) throw new NotFoundException('Company not found');
+
+            if (files?.logo?.[0]) {
+                if (company.logo) this.deleteLogoFile(company.logo);
+                company.logo = await this.handleLogoUpload(files.logo[0]);
+            }
+
+            if (files?.coverImage?.[0]) {
+                if (company.coverImage) this.deleteLogoFile(company.coverImage);
+                company.coverImage = await this.handleLogoUpload(files.coverImage[0]);
+            }
+
+            if (data.socialLinks) {
+                data.socialLinks = typeof data.socialLinks === 'string'
+                    ? JSON.parse(data.socialLinks)
+                    : data.socialLinks;
+            }
+
+            Object.assign(company, {
+                ...data,
+                name: data.companyName ?? company.name
+            });
+
+            return this.toVm(await this.companyRepository.save(company));
+
+        } catch (error) {
+            const err = error as any;
+
+            if (err.code === '23505') {
+                if (err.detail?.includes('email')) throw new BadRequestException('Cette adresse email est déjà utilisée');
+                if (err.detail?.includes('name')) throw new BadRequestException("Le nom de l'entreprise est déjà utilisé");
+                if (err.detail?.includes('phone')) throw new BadRequestException('Ce numéro de téléphone est déjà utilisé');
+                throw new BadRequestException('Valeur unique déjà utilisée');
+            }
+
+            if (error instanceof BadRequestException) throw error;
+            if (error instanceof NotFoundException) throw error;
+
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la mise à jour');
         }
-    
-        if (files?.coverImage?.[0]) {
-            if (company.coverImage) this.deleteLogoFile(company.coverImage);
-            company.coverImage = await this.handleLogoUpload(files.coverImage[0]);
-        }
-    
-        if (data.socialLinks) {
-            data.socialLinks = typeof data.socialLinks === 'string'
-                ? JSON.parse(data.socialLinks)
-                : data.socialLinks;
-        }
-    
-        Object.assign(company, {
-            ...data,
-            name: data.companyName ?? company.name
-        });
-    
-        return this.toVm(await this.companyRepository.save(company));
     }
 
     /*
@@ -257,12 +273,17 @@ export class CompaniesService {
     }
 
     async remove(id: string): Promise<{ message: string }> {
-        const company = await this.companyRepository.findOne({ where: { id } })
-        if (!company) throw new NotFoundException('Company not found')
-        if (company.logo) this.deleteLogoFile(company.logo)
-        if (company.coverImage) this.deleteLogoFile(company.coverImage)
-        await this.companyRepository.remove(company)
-        return { message: 'Company deleted successfully' }
+        try {
+            const company = await this.companyRepository.findOne({ where: { id } })
+            if (!company) throw new NotFoundException('Company not found')
+            if (company.logo) this.deleteLogoFile(company.logo)
+            if (company.coverImage) this.deleteLogoFile(company.coverImage)
+            await this.companyRepository.remove(company)
+            return { message: 'Company deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     async paginate(

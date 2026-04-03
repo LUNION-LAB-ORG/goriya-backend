@@ -151,10 +151,15 @@ export class JobOffersService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const jobOffer = await this.jobOfferRepository.findOne({ where: { id } })
-        if (!jobOffer) throw new NotFoundException('JobOffer not found')
-        await this.jobOfferRepository.remove(jobOffer)
-        return { message: 'JobOffer deleted successfully' }
+        try {
+            const jobOffer = await this.jobOfferRepository.findOne({ where: { id } })
+            if (!jobOffer) throw new NotFoundException('JobOffer not found')
+            await this.jobOfferRepository.remove(jobOffer)
+            return { message: 'JobOffer deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     /*

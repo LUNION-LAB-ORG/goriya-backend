@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Candidature } from './candidature.entity'
@@ -37,8 +37,14 @@ export class CandidaturesService {
     |--------------------------------------------------------------------------
     */
     async create(data: CreateCandidatureDto): Promise<CandidatureVm> {
-        const candidature = this.candidatureRepository.create(data)
-        return this.toVm(await this.candidatureRepository.save(candidature))
+        try {
+            const candidature = this.candidatureRepository.create(data)
+            return this.toVm(await this.candidatureRepository.save(candidature))
+        } catch (error) {
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la création');
+        }
     }
 
     /*
@@ -68,10 +74,17 @@ export class CandidaturesService {
     |--------------------------------------------------------------------------
     */
     async update(id: string, data: UpdateCandidatureDto): Promise<CandidatureVm> {
-        const candidature = await this.candidatureRepository.findOne({ where: { id }, relations: ['user', 'jobOffer'] })
-        if (!candidature) throw new NotFoundException('Candidature not found')
-        Object.assign(candidature, data)
-        return this.toVm(await this.candidatureRepository.save(candidature))
+        try {
+            const candidature = await this.candidatureRepository.findOne({ where: { id }, relations: ['user', 'jobOffer'] })
+            if (!candidature) throw new NotFoundException('Candidature not found')
+            Object.assign(candidature, data)
+            return this.toVm(await this.candidatureRepository.save(candidature))
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la mise à jour');
+        }
     }
 
     /*
@@ -80,10 +93,15 @@ export class CandidaturesService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const candidature = await this.candidatureRepository.findOne({ where: { id } })
-        if (!candidature) throw new NotFoundException('Candidature not found')
-        await this.candidatureRepository.remove(candidature)
-        return { message: 'Candidature deleted successfully' }
+        try {
+            const candidature = await this.candidatureRepository.findOne({ where: { id } })
+            if (!candidature) throw new NotFoundException('Candidature not found')
+            await this.candidatureRepository.remove(candidature)
+            return { message: 'Candidature deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     /*

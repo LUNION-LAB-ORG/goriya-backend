@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { ScoringResult } from './scoring-result.entity'
@@ -35,8 +35,14 @@ export class ScoringResultsService {
     |--------------------------------------------------------------------------
     */
     async create(data: CreateScoringResultDto): Promise<ScoringResultVm> {
-        const result = this.scoringResultRepository.create(data)
-        return this.toVm(await this.scoringResultRepository.save(result))
+        try {
+            const result = this.scoringResultRepository.create(data)
+            return this.toVm(await this.scoringResultRepository.save(result))
+        } catch (error) {
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la création');
+        }
     }
 
     /*
@@ -66,10 +72,17 @@ export class ScoringResultsService {
     |--------------------------------------------------------------------------
     */
     async update(id: string, data: UpdateScoringResultDto): Promise<ScoringResultVm> {
-        const result = await this.scoringResultRepository.findOne({ where: { id } })
-        if (!result) throw new NotFoundException('ScoringResult not found')
-        Object.assign(result, data)
-        return this.toVm(await this.scoringResultRepository.save(result))
+        try {
+            const result = await this.scoringResultRepository.findOne({ where: { id } })
+            if (!result) throw new NotFoundException('ScoringResult not found')
+            Object.assign(result, data)
+            return this.toVm(await this.scoringResultRepository.save(result))
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            const err = error as any;
+            if (err.code === '23505') throw new BadRequestException('Valeur unique déjà utilisée');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la mise à jour');
+        }
     }
 
     /*
@@ -78,10 +91,15 @@ export class ScoringResultsService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const result = await this.scoringResultRepository.findOne({ where: { id } })
-        if (!result) throw new NotFoundException('ScoringResult not found')
-        await this.scoringResultRepository.remove(result)
-        return { message: 'ScoringResult deleted successfully' }
+        try {
+            const result = await this.scoringResultRepository.findOne({ where: { id } })
+            if (!result) throw new NotFoundException('ScoringResult not found')
+            await this.scoringResultRepository.remove(result)
+            return { message: 'ScoringResult deleted successfully' }
+        } catch (error) {
+            if (error instanceof NotFoundException) throw error;
+            throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la suppression');
+        }
     }
 
     /*
