@@ -6,6 +6,8 @@ import { Company } from '../companies/company.entity'
 import { UpdateJobOfferDto } from './dto/update-job-offer.dto'
 import { CreateJobOfferDto } from './dto/create-job-offer.dto'
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common'
+import { JobOfferVm } from './dto/job-offer.vm'
+import { CompanyVm } from '../companies/dto/company.vm'
 
 @Injectable()
 export class JobOffersService {
@@ -17,12 +19,33 @@ export class JobOffersService {
         private readonly companyRepository: Repository<Company>,
     ) {}
 
+    private toVm(entity: JobOffer): JobOfferVm {
+        return new JobOfferVm({
+            id: entity.id,
+            title: entity.title,
+            location: entity.location,
+            type: entity.type,
+            experience: entity.experience,
+            salary: entity.salary,
+            description: entity.description,
+            benefits: entity.benefits,
+            requirements: entity.requirements,
+            status: entity.status,
+            publishDate: entity.publishDate,
+            endDate: entity.endDate,
+            applicants: entity.applicants,
+            company: entity.company ? new CompanyVm({ id: entity.company.id, name: entity.company.name }) : null,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateJobOfferDto): Promise<JobOffer> {
+    async create(data: CreateJobOfferDto): Promise<JobOfferVm> {
         try {
             // Vérifie si la company existe
             const company = await this.companyRepository.findOne({
@@ -41,7 +64,7 @@ export class JobOffersService {
             });
 
             // Sauvegarde dans la DB
-            return await this.jobOfferRepository.save(jobOffer);
+            return this.toVm(await this.jobOfferRepository.save(jobOffer));
         } catch (error) {
             console.error('Erreur création JobOffer:', error);
 
@@ -54,7 +77,7 @@ export class JobOffersService {
             }
 
             // Gestion des erreurs spécifiques
-            if (error.name === 'QueryFailedError') {
+            if ((error as any).name === 'QueryFailedError') {
                 throw new BadRequestException('Données invalides pour créer le JobOffer');
             }
 
@@ -69,10 +92,11 @@ export class JobOffersService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<JobOffer[]> {
-        return await this.jobOfferRepository.find({
+    async findAll(): Promise<JobOfferVm[]> {
+        const offers = await this.jobOfferRepository.find({
             relations: ['company', 'candidatures']
         })
+        return offers.map(o => this.toVm(o))
     }
 
     /*
@@ -80,13 +104,13 @@ export class JobOffersService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<JobOffer> {
+    async findOne(id: string): Promise<JobOfferVm> {
         const jobOffer = await this.jobOfferRepository.findOne({
             where: { id },
             relations: ['company', 'candidatures']
         })
         if (!jobOffer) throw new NotFoundException('JobOffer not found')
-        return jobOffer
+        return this.toVm(jobOffer)
     }
 
     /*
@@ -94,10 +118,9 @@ export class JobOffersService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateJobOfferDto): Promise<JobOffer> {
+    async update(id: string, data: UpdateJobOfferDto): Promise<JobOfferVm> {
         try {
-            // Vérifie que le JobOffer existe
-            const jobOffer = await this.findOne(id);
+            const jobOffer = await this.jobOfferRepository.findOne({ where: { id }, relations: ['company'] });
             if (!jobOffer) {
                 throw new NotFoundException(`JobOffer with id ${id} not found`);
             }
@@ -106,11 +129,11 @@ export class JobOffersService {
             Object.assign(jobOffer, data);
     
             // Sauvegarde dans la DB
-            return await this.jobOfferRepository.save(jobOffer);
+            return this.toVm(await this.jobOfferRepository.save(jobOffer));
         } catch (error) {
             console.error(`Erreur lors de la mise à jour du JobOffer ${id}:`, error);
     
-            if (error.name === 'QueryFailedError') {
+            if ((error as any).name === 'QueryFailedError') {
                 throw new BadRequestException('Données invalides pour mettre à jour le JobOffer');
             }
     
@@ -128,7 +151,8 @@ export class JobOffersService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const jobOffer = await this.findOne(id)
+        const jobOffer = await this.jobOfferRepository.findOne({ where: { id } })
+        if (!jobOffer) throw new NotFoundException('JobOffer not found')
         await this.jobOfferRepository.remove(jobOffer)
         return { message: 'JobOffer deleted successfully' }
     }
@@ -186,7 +210,7 @@ export class JobOffersService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(o => this.toVm(o)),
             meta: {
                 total,
                 page,

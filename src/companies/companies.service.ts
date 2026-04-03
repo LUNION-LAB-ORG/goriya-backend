@@ -12,6 +12,7 @@ import { UpdateCompanyDto } from './dto/update-company.dto'
 import { CompanyStatus, UserRole, UserStatus } from '../@types/enums'
 import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
+import { CompanyVm } from './dto/company.vm'
 
 @Injectable()
 export class CompaniesService {
@@ -27,6 +28,30 @@ export class CompaniesService {
 
     private readonly allowedImageTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
     private readonly uploadDir = path.join('/tmp/uploads/companies')
+
+    private toVm(entity: Company): CompanyVm {
+        return new CompanyVm({
+            id: entity.id,
+            name: entity.name,
+            sector: entity.sector,
+            logo: entity.logo ?? null,
+            coverImage: entity.coverImage ?? null,
+            about: entity.about ?? null,
+            website: entity.website ?? null,
+            creationDate: entity.creationDate ?? null,
+            partnershipDate: entity.partnershipDate,
+            companySize: entity.companySize ?? null,
+            socialLinks: entity.socialLinks ?? [],
+            country: entity.country ?? null,
+            headquarters: entity.headquarters ?? null,
+            location: entity.location ?? null,
+            phone: entity.phone ?? null,
+            email: entity.email ?? null,
+            status: entity.status,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
 
     /*
     |--------------------------------------------------------------------------
@@ -113,20 +138,21 @@ export class CompaniesService {
 
             const { password: _, ...safeUser } = savedUser;
     
-            return { company: savedCompany, user: safeUser, accessToken };
+            return { company: this.toVm(savedCompany), user: safeUser, accessToken };
     
         } catch (error) {
             await queryRunner.rollbackTransaction();
             console.error('CREATE COMPANY ERROR:', error);
+            const err = error as any;
 
-            if (error.code === '23505') { // PostgreSQL unique violation
-                if (error.detail.includes('email')) {
+            if (err.code === '23505') { // PostgreSQL unique violation
+                if (err.detail.includes('email')) {
                     throw new BadRequestException('Cette adresse email est déjà utilisée');
                 }
-                if (error.detail.includes('name')) { // 🔹 change companyName → name
+                if (err.detail.includes('name')) { // 🔹 change companyName → name
                     throw new BadRequestException('Le nom de l’entreprise est déjà utilisé');
                 }
-                if (error.detail.includes('phone')) {
+                if (err.detail.includes('phone')) {
                     throw new BadRequestException('Ce numéro de téléphone est déjà utilisé');
                 }
                 throw new BadRequestException('Valeur unique déjà utilisée');
@@ -134,7 +160,7 @@ export class CompaniesService {
             
             if (error instanceof BadRequestException) throw error;
 
-            throw new InternalServerErrorException(error.message || 'Erreur interne lors de la création');
+            throw new InternalServerErrorException(err.message || 'Erreur interne lors de la création');
         } finally {
             await queryRunner.release();
         }
@@ -148,9 +174,10 @@ export class CompaniesService {
     async update(id: string, data: UpdateCompanyDto, files?: {
         logo?: UploadedFile[],
         coverImage?: UploadedFile[]
-    }): Promise<Company> {
+    }): Promise<CompanyVm> {
     
-        const company = await this.findOne(id);
+        const company = await this.companyRepository.findOne({ where: { id } });
+        if (!company) throw new NotFoundException('Company not found');
     
         if (files?.logo?.[0]) {
             if (company.logo) this.deleteLogoFile(company.logo);
@@ -173,7 +200,7 @@ export class CompaniesService {
             name: data.companyName ?? company.name
         });
     
-        return await this.companyRepository.save(company);
+        return this.toVm(await this.companyRepository.save(company));
     }
 
     /*
@@ -215,21 +242,23 @@ export class CompaniesService {
     | FIND ALL, FIND ONE, REMOVE, PAGINATE
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<Company[]> {
-        return await this.companyRepository.find({ relations: ['jobOffers', 'users'] })
+    async findAll(): Promise<CompanyVm[]> {
+        const companies = await this.companyRepository.find({ relations: ['jobOffers', 'users'] })
+        return companies.map(c => this.toVm(c))
     }
 
-    async findOne(id: string): Promise<Company> {
+    async findOne(id: string): Promise<CompanyVm> {
         const company = await this.companyRepository.findOne({
             where: { id },
             relations: ['jobOffers', 'users']
         })
         if (!company) throw new NotFoundException('Company not found')
-        return company
+        return this.toVm(company)
     }
 
     async remove(id: string): Promise<{ message: string }> {
-        const company = await this.findOne(id)
+        const company = await this.companyRepository.findOne({ where: { id } })
+        if (!company) throw new NotFoundException('Company not found')
         if (company.logo) this.deleteLogoFile(company.logo)
         if (company.coverImage) this.deleteLogoFile(company.coverImage)
         await this.companyRepository.remove(company)
@@ -329,7 +358,7 @@ export class CompaniesService {
         const [data, total] = await query.getManyAndCount();
     
         return {
-            data,
+            data: data.map(c => this.toVm(c)),
             meta: {
                 total,
                 page,

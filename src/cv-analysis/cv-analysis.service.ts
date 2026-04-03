@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { UploadedFile } from '../@types/utils'
 import { CreateCvAnalysisDto } from './dto/create-cv-analysis.dto'
 import { UpdateCvAnalysisDto } from './dto/update-cv-analysis.dto'
+import { CVAnalysisVm } from './dto/cv-analysis.vm'
 
 @Injectable()
 export class CVAnalysisService {
@@ -56,19 +57,32 @@ export class CVAnalysisService {
         if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
     }
 
+    private toVm(entity: CVAnalysis): CVAnalysisVm {
+        return new CVAnalysisVm({
+            id: entity.id,
+            fileName: entity.fileName,
+            analysisScore: entity.analysisScore,
+            recommendations: entity.recommendations,
+            uploadDate: entity.uploadDate,
+            status: entity.status,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateCvAnalysisDto, file: UploadedFile): Promise<CVAnalysis> {
+    async create(data: CreateCvAnalysisDto, file: UploadedFile): Promise<CVAnalysisVm> {
         const fileName = await this.handleFileUpload(file)
 
         const cv = this.cvAnalysisRepository.create({
             ...data,
             fileName: fileName
         })
-        return await this.cvAnalysisRepository.save(cv)
+        return this.toVm(await this.cvAnalysisRepository.save(cv))
     }
 
     /*
@@ -76,8 +90,9 @@ export class CVAnalysisService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateCvAnalysisDto, file?: UploadedFile): Promise<CVAnalysis> {
-        const cv = await this.findOne(id)
+    async update(id: string, data: UpdateCvAnalysisDto, file?: UploadedFile): Promise<CVAnalysisVm> {
+        const cv = await this.cvAnalysisRepository.findOne({ where: { id } })
+        if (!cv) throw new NotFoundException('CVAnalysis not found')
 
         // Gestion du nouveau fichier uploadé
         if (file) {
@@ -92,7 +107,7 @@ export class CVAnalysisService {
         }
 
         Object.assign(cv, data)
-        return await this.cvAnalysisRepository.save(cv)
+        return this.toVm(await this.cvAnalysisRepository.save(cv))
     }
 
     /*
@@ -100,8 +115,9 @@ export class CVAnalysisService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<CVAnalysis[]> {
-        return await this.cvAnalysisRepository.find()
+    async findAll(): Promise<CVAnalysisVm[]> {
+        const cvs = await this.cvAnalysisRepository.find()
+        return cvs.map(c => this.toVm(c))
     }
 
     /*
@@ -109,10 +125,10 @@ export class CVAnalysisService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<CVAnalysis> {
+    async findOne(id: string): Promise<CVAnalysisVm> {
         const cv = await this.cvAnalysisRepository.findOne({ where: { id } })
         if (!cv) throw new NotFoundException('CVAnalysis not found')
-        return cv
+        return this.toVm(cv)
     }
 
     /*
@@ -121,7 +137,8 @@ export class CVAnalysisService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const cv = await this.findOne(id)
+        const cv = await this.cvAnalysisRepository.findOne({ where: { id } })
+        if (!cv) throw new NotFoundException('CVAnalysis not found')
         if (cv.fileName) this.deleteFile(cv.fileName)
         await this.cvAnalysisRepository.remove(cv)
         return { message: 'CVAnalysis deleted successfully' }
@@ -158,7 +175,7 @@ export class CVAnalysisService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(c => this.toVm(c)),
             meta: {
                 total,
                 page,

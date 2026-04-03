@@ -5,6 +5,9 @@ import { Candidature } from './candidature.entity'
 import { CandidatureStatus } from '../@types/enums'
 import { CreateCandidatureDto } from './dto/create-candidature.dto'
 import { UpdateCandidatureDto } from './dto/update-candidature.dto'
+import { CandidatureVm } from './dto/candidature.vm'
+import { UserVm } from '../users/dto/user.vm'
+import { JobOfferVm } from '../job-offers/dto/job-offer.vm'
 
 @Injectable()
 export class CandidaturesService {
@@ -13,14 +16,29 @@ export class CandidaturesService {
         private readonly candidatureRepository: Repository<Candidature>,
     ) {}
 
+    private toVm(entity: Candidature): CandidatureVm {
+        return new CandidatureVm({
+            id: entity.id,
+            candidateName: entity.candidateName,
+            candidateEmail: entity.candidateEmail,
+            status: entity.status,
+            score: entity.score,
+            appliedDate: entity.appliedDate,
+            user: entity.user ? new UserVm({ id: entity.user.id, name: entity.user.name, email: entity.user.email }) : null,
+            jobOffer: entity.jobOffer ? new JobOfferVm({ id: entity.jobOffer.id, title: entity.jobOffer.title }) : null,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateCandidatureDto): Promise<Candidature> {
+    async create(data: CreateCandidatureDto): Promise<CandidatureVm> {
         const candidature = this.candidatureRepository.create(data)
-        return await this.candidatureRepository.save(candidature)
+        return this.toVm(await this.candidatureRepository.save(candidature))
     }
 
     /*
@@ -28,8 +46,9 @@ export class CandidaturesService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<Candidature[]> {
-        return await this.candidatureRepository.find({ relations: ['user', 'jobOffer'] })
+    async findAll(): Promise<CandidatureVm[]> {
+        const candidatures = await this.candidatureRepository.find({ relations: ['user', 'jobOffer'] })
+        return candidatures.map(c => this.toVm(c))
     }
 
     /*
@@ -37,13 +56,10 @@ export class CandidaturesService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<Candidature> {
-        const candidature = await this.candidatureRepository.findOne({
-            where: { id },
-            relations: ['user', 'jobOffer']
-        })
+    async findOne(id: string): Promise<CandidatureVm> {
+        const candidature = await this.candidatureRepository.findOne({ where: { id }, relations: ['user', 'jobOffer'] })
         if (!candidature) throw new NotFoundException('Candidature not found')
-        return candidature
+        return this.toVm(candidature)
     }
 
     /*
@@ -51,10 +67,11 @@ export class CandidaturesService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateCandidatureDto): Promise<Candidature> {
-        const candidature = await this.findOne(id)
+    async update(id: string, data: UpdateCandidatureDto): Promise<CandidatureVm> {
+        const candidature = await this.candidatureRepository.findOne({ where: { id }, relations: ['user', 'jobOffer'] })
+        if (!candidature) throw new NotFoundException('Candidature not found')
         Object.assign(candidature, data)
-        return await this.candidatureRepository.save(candidature)
+        return this.toVm(await this.candidatureRepository.save(candidature))
     }
 
     /*
@@ -63,7 +80,8 @@ export class CandidaturesService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const candidature = await this.findOne(id)
+        const candidature = await this.candidatureRepository.findOne({ where: { id } })
+        if (!candidature) throw new NotFoundException('Candidature not found')
         await this.candidatureRepository.remove(candidature)
         return { message: 'Candidature deleted successfully' }
     }
@@ -121,7 +139,7 @@ export class CandidaturesService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(c => this.toVm(c)),
             meta: {
                 total,
                 page,

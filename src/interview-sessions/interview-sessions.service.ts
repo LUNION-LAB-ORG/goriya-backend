@@ -5,6 +5,7 @@ import { InterviewSession } from './interview-session.entity'
 import { InterviewStatus } from '../@types/enums'
 import { UpdateInterviewSessionDto } from './dto/update-interview-session.dto'
 import { CreateInterviewSessionDto } from './dto/create-interview-session.dto'
+import { InterviewSessionVm } from './dto/interview-session.vm'
 
 @Injectable()
 export class InterviewSessionsService {
@@ -13,14 +14,30 @@ export class InterviewSessionsService {
         private readonly interviewSessionRepository: Repository<InterviewSession>,
     ) {}
 
+    private toVm(entity: InterviewSession): InterviewSessionVm {
+        return new InterviewSessionVm({
+            id: entity.id,
+            candidateName: entity.candidateName,
+            candidateEmail: entity.candidateEmail,
+            position: entity.position,
+            duration: entity.duration,
+            score: entity.score,
+            status: entity.status,
+            startTime: entity.startTime,
+            feedback: entity.feedback,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateInterviewSessionDto): Promise<InterviewSession> {
+    async create(data: CreateInterviewSessionDto): Promise<InterviewSessionVm> {
         const session = this.interviewSessionRepository.create(data)
-        return await this.interviewSessionRepository.save(session)
+        return this.toVm(await this.interviewSessionRepository.save(session))
     }
 
     /*
@@ -28,8 +45,9 @@ export class InterviewSessionsService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<InterviewSession[]> {
-        return await this.interviewSessionRepository.find()
+    async findAll(): Promise<InterviewSessionVm[]> {
+        const sessions = await this.interviewSessionRepository.find()
+        return sessions.map(s => this.toVm(s))
     }
 
     /*
@@ -37,10 +55,10 @@ export class InterviewSessionsService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<InterviewSession> {
+    async findOne(id: string): Promise<InterviewSessionVm> {
         const session = await this.interviewSessionRepository.findOne({ where: { id } })
         if (!session) throw new NotFoundException('InterviewSession not found')
-        return session
+        return this.toVm(session)
     }
 
     /*
@@ -48,10 +66,11 @@ export class InterviewSessionsService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateInterviewSessionDto): Promise<InterviewSession> {
-        const session = await this.findOne(id)
+    async update(id: string, data: UpdateInterviewSessionDto): Promise<InterviewSessionVm> {
+        const session = await this.interviewSessionRepository.findOne({ where: { id } })
+        if (!session) throw new NotFoundException('InterviewSession not found')
         Object.assign(session, data)
-        return await this.interviewSessionRepository.save(session)
+        return this.toVm(await this.interviewSessionRepository.save(session))
     }
 
     /*
@@ -60,7 +79,8 @@ export class InterviewSessionsService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const session = await this.findOne(id)
+        const session = await this.interviewSessionRepository.findOne({ where: { id } })
+        if (!session) throw new NotFoundException('InterviewSession not found')
         await this.interviewSessionRepository.remove(session)
         return { message: 'InterviewSession deleted successfully' }
     }
@@ -116,7 +136,7 @@ export class InterviewSessionsService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(s => this.toVm(s)),
             meta: {
                 total,
                 page,

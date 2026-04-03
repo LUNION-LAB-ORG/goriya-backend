@@ -18,6 +18,7 @@ import { CreateCompanyDto } from './dto/create-company.dto'
 import { UpdateCompanyDto } from './dto/update-company.dto'
 import { CompanyStatus } from '../@types/enums'
 import { Public } from '../auth/public.decorator'
+import type { UploadedFile as MulterFile } from '../@types/utils'
 
 @Public()
 @Controller('companies')
@@ -39,8 +40,8 @@ export class CompaniesController {
     async create(
         @Body() data: CreateCompanyDto,
         @UploadedFiles() files: {
-            logo?: Express.Multer.File[],
-            coverImage?: Express.Multer.File[]
+            logo?: MulterFile[],
+            coverImage?: MulterFile[]
         }
     ) {
         return this.companiesService.create(data, files);
@@ -125,8 +126,8 @@ export class CompaniesController {
         @Param('id') id: string,
         @Body() data: UpdateCompanyDto,
         @UploadedFiles() files: {
-            logo?: Express.Multer.File[],
-            coverImage?: Express.Multer.File[]
+            logo?: MulterFile[],
+            coverImage?: MulterFile[]
         }
     ) {
         return this.companiesService.update(id, data, files);

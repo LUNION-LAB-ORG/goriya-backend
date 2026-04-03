@@ -4,6 +4,8 @@ import { Repository } from 'typeorm'
 import { Portfolio } from './portfolio.entity'
 import { UpdatePortfolioDto } from './dto/update-portfolio.dto'
 import { CreatePortfolioDto } from './dto/create-portfolio.dto'
+import { PortfolioVm } from './dto/portfolio.vm'
+import { UserVm } from '../users/dto/user.vm'
 
 @Injectable()
 export class PortfoliosService {
@@ -12,14 +14,30 @@ export class PortfoliosService {
         private readonly portfolioRepository: Repository<Portfolio>,
     ) {}
 
+    private toVm(entity: Portfolio): PortfolioVm {
+        return new PortfolioVm({
+            id: entity.id,
+            title: entity.title,
+            description: entity.description,
+            skills: entity.skills,
+            views: entity.views,
+            downloads: entity.downloads,
+            likes: entity.likes,
+            createdDate: entity.createdDate,
+            user: entity.user ? new UserVm({ id: entity.user.id, name: entity.user.name, email: entity.user.email }) : null,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreatePortfolioDto): Promise<Portfolio> {
+    async create(data: CreatePortfolioDto): Promise<PortfolioVm> {
         const portfolio = this.portfolioRepository.create(data)
-        return await this.portfolioRepository.save(portfolio)
+        return this.toVm(await this.portfolioRepository.save(portfolio))
     }
 
     /*
@@ -27,10 +45,9 @@ export class PortfoliosService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<Portfolio[]> {
-        return await this.portfolioRepository.find({
-            relations: ['user']
-        })
+    async findAll(): Promise<PortfolioVm[]> {
+        const portfolios = await this.portfolioRepository.find({ relations: ['user'] })
+        return portfolios.map(p => this.toVm(p))
     }
 
     /*
@@ -38,13 +55,10 @@ export class PortfoliosService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<Portfolio> {
-        const portfolio = await this.portfolioRepository.findOne({
-            where: { id },
-            relations: ['user']
-        })
+    async findOne(id: string): Promise<PortfolioVm> {
+        const portfolio = await this.portfolioRepository.findOne({ where: { id }, relations: ['user'] })
         if (!portfolio) throw new NotFoundException('Portfolio not found')
-        return portfolio
+        return this.toVm(portfolio)
     }
 
     /*
@@ -52,10 +66,11 @@ export class PortfoliosService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdatePortfolioDto): Promise<Portfolio> {
-        const portfolio = await this.findOne(id)
+    async update(id: string, data: UpdatePortfolioDto): Promise<PortfolioVm> {
+        const portfolio = await this.portfolioRepository.findOne({ where: { id }, relations: ['user'] })
+        if (!portfolio) throw new NotFoundException('Portfolio not found')
         Object.assign(portfolio, data)
-        return await this.portfolioRepository.save(portfolio)
+        return this.toVm(await this.portfolioRepository.save(portfolio))
     }
 
     /*
@@ -64,7 +79,8 @@ export class PortfoliosService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const portfolio = await this.findOne(id)
+        const portfolio = await this.portfolioRepository.findOne({ where: { id } })
+        if (!portfolio) throw new NotFoundException('Portfolio not found')
         await this.portfolioRepository.remove(portfolio)
         return { message: 'Portfolio deleted successfully' }
     }
@@ -125,7 +141,7 @@ export class PortfoliosService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(p => this.toVm(p)),
             meta: {
                 total,
                 page,

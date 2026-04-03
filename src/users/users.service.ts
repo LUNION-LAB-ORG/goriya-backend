@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import { JwtService } from '@nestjs/jwt'
 import { Repository } from 'typeorm'
 import { User } from './user.entity'
 import { Company } from '../companies/company.entity'
@@ -10,7 +11,9 @@ import * as bcrypt from 'bcrypt'
 import { v4 as uuidv4 } from 'uuid'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
-import { Express } from 'express'
+import { UserVm } from './dto/user.vm'
+import { CompanyVm } from '../companies/dto/company.vm'
+import { UploadedFile } from '../@types/utils'
 
 @Injectable()
 export class UsersService {
@@ -21,7 +24,24 @@ export class UsersService {
 
         @InjectRepository(Company)
         private readonly companyRepository: Repository<Company>,
+
+        private readonly jwtService: JwtService,
     ) {}
+
+    private toVm(user: User): UserVm {
+        return new UserVm({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            status: user.status,
+            avatar: user.avatar ?? null,
+            registrationDate: user.registrationDate,
+            company: user.company ? new CompanyVm({ id: user.company.id, name: user.company.name }) : null,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+        })
+    }
 
     private readonly allowedFileTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
     private readonly uploadDir = path.join('/tmp/uploads/avatars')
@@ -31,7 +51,7 @@ export class UsersService {
     | HANDLE FILE UPLOAD
     |--------------------------------------------------------------------------
     */
-    private async handleAvatarUpload(file: Express.Multer.File): Promise<string> {
+    private async handleAvatarUpload(file: UploadedFile): Promise<string> {
         if (!this.allowedFileTypes.includes(file.mimetype)) {
             throw new BadRequestException('Unsupported file type')
         }
@@ -58,7 +78,7 @@ export class UsersService {
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateUserDto, avatar?: Express.Multer.File): Promise<User> {
+    async create(data: CreateUserDto, avatar?: UploadedFile): Promise<{ user: UserVm; accessToken: string }> {
 
         const userData: Partial<User> = { ...data }
 
@@ -93,7 +113,12 @@ export class UsersService {
 
         const user = this.userRepository.create(userData)
 
-        return await this.userRepository.save(user)
+        const savedUser = await this.userRepository.save(user)
+
+        const payload = { sub: savedUser.id, email: savedUser.email, role: savedUser.role }
+        const accessToken = this.jwtService.sign(payload)
+
+        return { user: this.toVm(savedUser), accessToken }
     }
 
     /*
@@ -101,10 +126,11 @@ export class UsersService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<User[]> {
-        return await this.userRepository.find({
+    async findAll(): Promise<UserVm[]> {
+        const users = await this.userRepository.find({
             relations: ['portfolios', 'candidatures', 'company']
         })
+        return users.map(u => this.toVm(u))
     }
 
     /*
@@ -112,7 +138,7 @@ export class UsersService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<User> {
+    async findOne(id: string): Promise<UserVm> {
         const user = await this.userRepository.findOne({
             where: { id },
             relations: ['portfolios', 'candidatures', 'company']
@@ -120,7 +146,7 @@ export class UsersService {
 
         if (!user) throw new NotFoundException('User not found')
 
-        return user
+        return this.toVm(user)
     }
 
     /*
@@ -143,10 +169,15 @@ export class UsersService {
     async update(
         id: string,
         data: UpdateUserDto,
-        avatar?: Express.Multer.File
-    ): Promise<User> {
+        avatar?: UploadedFile
+    ): Promise<UserVm> {
 
-        const user = await this.findOne(id)
+        const user = await this.userRepository.findOne({
+            where: { id },
+            relations: ['portfolios', 'candidatures', 'company']
+        })
+
+        if (!user) throw new NotFoundException('User not found')
 
         // hash password si présent
         if (data.password) {
@@ -180,7 +211,7 @@ export class UsersService {
 
         Object.assign(user, data)
 
-        return await this.userRepository.save(user)
+        return this.toVm(await this.userRepository.save(user))
     }
 
     /*
@@ -189,7 +220,9 @@ export class UsersService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const user = await this.findOne(id)
+        const user = await this.userRepository.findOne({ where: { id } })
+
+        if (!user) throw new NotFoundException('User not found')
 
         if (user.avatar) this.deleteFile(user.avatar)
 
@@ -267,7 +300,7 @@ export class UsersService {
         const [data, total] = await query.getManyAndCount()
     
         return {
-            data,
+            data: data.map(u => this.toVm(u)),
             meta: {
                 total,
                 page,

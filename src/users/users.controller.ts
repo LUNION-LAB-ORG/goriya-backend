@@ -17,6 +17,7 @@ import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { CompanyStatus, UserRole, UserStatus } from '../@types/enums'
+import type { UploadedFile as MulterFile } from '../@types/utils'
 
 @Public()
 @Controller('users')
@@ -31,7 +32,7 @@ export class UsersController {
     @Post()
     // @UseGuards(JwtAuthGuard)
     @UseInterceptors(FileInterceptor('avatar'))
-    async create(@Body() data: CreateUserDto, @UploadedFile() avatar?: Express.Multer.File) {
+    async create(@Body() data: CreateUserDto, @UploadedFile() avatar?: MulterFile) {
         return this.usersService.create(data, avatar)
     }
 
@@ -108,7 +109,7 @@ export class UsersController {
     async update(
         @Param('id') id: string,
         @Body() data: UpdateUserDto,
-        @UploadedFile() avatar?: Express.Multer.File
+        @UploadedFile() avatar?: MulterFile
     ) {
         return this.usersService.update(id, data, avatar)
     }

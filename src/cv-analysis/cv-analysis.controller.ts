@@ -17,6 +17,7 @@ import { CreateCvAnalysisDto } from './dto/create-cv-analysis.dto'
 import { UpdateCvAnalysisDto } from './dto/update-cv-analysis.dto'
 import { CVStatus } from '../@types/enums'
 import { Public } from '../auth/public.decorator'
+import type { UploadedFile as MulterFile } from '../@types/utils'
 
 @Public()
 @Controller('cv-analysis')
@@ -30,7 +31,7 @@ export class CVAnalysisController {
     */
     @Post()
     @UseInterceptors(FileInterceptor('file'))
-    async create(@Body() data: CreateCvAnalysisDto, @UploadedFile() file: Express.Multer.File) {
+    async create(@Body() data: CreateCvAnalysisDto, @UploadedFile() file: MulterFile) {
         return this.cvAnalysisService.create(data, file)
     }
 
@@ -88,7 +89,7 @@ export class CVAnalysisController {
     async update(
         @Param('id') id: string, 
         @Body() data: UpdateCvAnalysisDto, 
-        @UploadedFile() file?: Express.Multer.File
+        @UploadedFile() file?: MulterFile
     ) {
         return this.cvAnalysisService.update(id, data, file)
     }

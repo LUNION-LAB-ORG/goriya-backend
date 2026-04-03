@@ -5,6 +5,7 @@ import { CalendarEvent } from './calendar-event.entity'
 import { EventType, EventStatus } from '../@types/enums'
 import { CreateCalendarEventDto } from './dto/create-calendar-event.dto'
 import { UpdateCalendarEventDto } from './dto/update-calendar-event.dto'
+import { CalendarEventVm } from './dto/calendar-event.vm'
 
 @Injectable()
 export class CalendarEventsService {
@@ -13,14 +14,29 @@ export class CalendarEventsService {
         private readonly calendarEventRepository: Repository<CalendarEvent>,
     ) {}
 
+    private toVm(entity: CalendarEvent): CalendarEventVm {
+        return new CalendarEventVm({
+            id: entity.id,
+            title: entity.title,
+            type: entity.type,
+            startTime: entity.startTime,
+            endTime: entity.endTime,
+            participants: entity.participants,
+            location: entity.location ?? null,
+            status: entity.status,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateCalendarEventDto): Promise<CalendarEvent> {
+    async create(data: CreateCalendarEventDto): Promise<CalendarEventVm> {
         const event = this.calendarEventRepository.create(data)
-        return await this.calendarEventRepository.save(event)
+        return this.toVm(await this.calendarEventRepository.save(event))
     }
 
     /*
@@ -28,8 +44,9 @@ export class CalendarEventsService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<CalendarEvent[]> {
-        return await this.calendarEventRepository.find()
+    async findAll(): Promise<CalendarEventVm[]> {
+        const events = await this.calendarEventRepository.find()
+        return events.map(e => this.toVm(e))
     }
 
     /*
@@ -37,10 +54,10 @@ export class CalendarEventsService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<CalendarEvent> {
+    async findOne(id: string): Promise<CalendarEventVm> {
         const event = await this.calendarEventRepository.findOne({ where: { id } })
         if (!event) throw new NotFoundException('CalendarEvent not found')
-        return event
+        return this.toVm(event)
     }
 
     /*
@@ -48,10 +65,11 @@ export class CalendarEventsService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateCalendarEventDto): Promise<CalendarEvent> {
-        const event = await this.findOne(id)
+    async update(id: string, data: UpdateCalendarEventDto): Promise<CalendarEventVm> {
+        const event = await this.calendarEventRepository.findOne({ where: { id } })
+        if (!event) throw new NotFoundException('CalendarEvent not found')
         Object.assign(event, data)
-        return await this.calendarEventRepository.save(event)
+        return this.toVm(await this.calendarEventRepository.save(event))
     }
 
     /*
@@ -60,7 +78,8 @@ export class CalendarEventsService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const event = await this.findOne(id)
+        const event = await this.calendarEventRepository.findOne({ where: { id } })
+        if (!event) throw new NotFoundException('CalendarEvent not found')
         await this.calendarEventRepository.remove(event)
         return { message: 'CalendarEvent deleted successfully' }
     }
@@ -116,7 +135,7 @@ export class CalendarEventsService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(e => this.toVm(e)),
             meta: {
                 total,
                 page,

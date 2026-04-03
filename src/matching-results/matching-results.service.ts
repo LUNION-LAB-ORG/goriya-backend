@@ -5,6 +5,7 @@ import { MatchingResult } from './matching-result.entity'
 import { MatchingStatus } from '../@types/enums'
 import { UpdateMatchingResultDto } from './dto/update-matching-result.dto'
 import { CreateMatchingResultDto } from './dto/create-matching-result.dto'
+import { MatchingResultVm } from './dto/matching-result.vm'
 
 @Injectable()
 export class MatchingResultsService {
@@ -13,14 +14,29 @@ export class MatchingResultsService {
         private readonly matchingResultRepository: Repository<MatchingResult>,
     ) {}
 
+    private toVm(entity: MatchingResult): MatchingResultVm {
+        return new MatchingResultVm({
+            id: entity.id,
+            candidateName: entity.candidateName,
+            candidateEmail: entity.candidateEmail,
+            position: entity.position,
+            company: entity.company,
+            matchingScore: entity.matchingScore,
+            status: entity.status,
+            matchDate: entity.matchDate,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateMatchingResultDto): Promise<MatchingResult> {
+    async create(data: CreateMatchingResultDto): Promise<MatchingResultVm> {
         const result = this.matchingResultRepository.create(data)
-        return await this.matchingResultRepository.save(result)
+        return this.toVm(await this.matchingResultRepository.save(result))
     }
 
     /*
@@ -28,8 +44,9 @@ export class MatchingResultsService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<MatchingResult[]> {
-        return await this.matchingResultRepository.find()
+    async findAll(): Promise<MatchingResultVm[]> {
+        const results = await this.matchingResultRepository.find()
+        return results.map(r => this.toVm(r))
     }
 
     /*
@@ -37,10 +54,10 @@ export class MatchingResultsService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<MatchingResult> {
+    async findOne(id: string): Promise<MatchingResultVm> {
         const result = await this.matchingResultRepository.findOne({ where: { id } })
         if (!result) throw new NotFoundException('MatchingResult not found')
-        return result
+        return this.toVm(result)
     }
 
     /*
@@ -48,10 +65,11 @@ export class MatchingResultsService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateMatchingResultDto): Promise<MatchingResult> {
-        const result = await this.findOne(id)
+    async update(id: string, data: UpdateMatchingResultDto): Promise<MatchingResultVm> {
+        const result = await this.matchingResultRepository.findOne({ where: { id } })
+        if (!result) throw new NotFoundException('MatchingResult not found')
         Object.assign(result, data)
-        return await this.matchingResultRepository.save(result)
+        return this.toVm(await this.matchingResultRepository.save(result))
     }
 
     /*
@@ -60,7 +78,8 @@ export class MatchingResultsService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const result = await this.findOne(id)
+        const result = await this.matchingResultRepository.findOne({ where: { id } })
+        if (!result) throw new NotFoundException('MatchingResult not found')
         await this.matchingResultRepository.remove(result)
         return { message: 'MatchingResult deleted successfully' }
     }
@@ -116,7 +135,7 @@ export class MatchingResultsService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(r => this.toVm(r)),
             meta: {
                 total,
                 page,

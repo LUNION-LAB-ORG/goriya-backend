@@ -5,6 +5,7 @@ import { ScoringResult } from './scoring-result.entity'
 import { ScoringStatus } from '../@types/enums'
 import { CreateScoringResultDto } from './dto/create-scoring-result.dto'
 import { UpdateScoringResultDto } from './dto/update-scoring-result.dto'
+import { ScoringResultVm } from './dto/scoring-result.vm'
 
 @Injectable()
 export class ScoringResultsService {
@@ -13,14 +14,29 @@ export class ScoringResultsService {
         private readonly scoringResultRepository: Repository<ScoringResult>,
     ) {}
 
+    private toVm(entity: ScoringResult): ScoringResultVm {
+        return new ScoringResultVm({
+            id: entity.id,
+            candidateName: entity.candidateName,
+            candidateEmail: entity.candidateEmail,
+            position: entity.position,
+            overallScore: entity.overallScore,
+            criteria: entity.criteria,
+            analysisDate: entity.analysisDate,
+            status: entity.status,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        })
+    }
+
     /*
     |--------------------------------------------------------------------------
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateScoringResultDto): Promise<ScoringResult> {
+    async create(data: CreateScoringResultDto): Promise<ScoringResultVm> {
         const result = this.scoringResultRepository.create(data)
-        return await this.scoringResultRepository.save(result)
+        return this.toVm(await this.scoringResultRepository.save(result))
     }
 
     /*
@@ -28,8 +44,9 @@ export class ScoringResultsService {
     | FIND ALL
     |--------------------------------------------------------------------------
     */
-    async findAll(): Promise<ScoringResult[]> {
-        return await this.scoringResultRepository.find()
+    async findAll(): Promise<ScoringResultVm[]> {
+        const results = await this.scoringResultRepository.find()
+        return results.map(r => this.toVm(r))
     }
 
     /*
@@ -37,10 +54,10 @@ export class ScoringResultsService {
     | FIND ONE
     |--------------------------------------------------------------------------
     */
-    async findOne(id: string): Promise<ScoringResult> {
+    async findOne(id: string): Promise<ScoringResultVm> {
         const result = await this.scoringResultRepository.findOne({ where: { id } })
         if (!result) throw new NotFoundException('ScoringResult not found')
-        return result
+        return this.toVm(result)
     }
 
     /*
@@ -48,10 +65,11 @@ export class ScoringResultsService {
     | UPDATE
     |--------------------------------------------------------------------------
     */
-    async update(id: string, data: UpdateScoringResultDto): Promise<ScoringResult> {
-        const result = await this.findOne(id)
+    async update(id: string, data: UpdateScoringResultDto): Promise<ScoringResultVm> {
+        const result = await this.scoringResultRepository.findOne({ where: { id } })
+        if (!result) throw new NotFoundException('ScoringResult not found')
         Object.assign(result, data)
-        return await this.scoringResultRepository.save(result)
+        return this.toVm(await this.scoringResultRepository.save(result))
     }
 
     /*
@@ -60,7 +78,8 @@ export class ScoringResultsService {
     |--------------------------------------------------------------------------
     */
     async remove(id: string): Promise<{ message: string }> {
-        const result = await this.findOne(id)
+        const result = await this.scoringResultRepository.findOne({ where: { id } })
+        if (!result) throw new NotFoundException('ScoringResult not found')
         await this.scoringResultRepository.remove(result)
         return { message: 'ScoringResult deleted successfully' }
     }
@@ -112,7 +131,7 @@ export class ScoringResultsService {
         const [data, total] = await query.getManyAndCount()
 
         return {
-            data,
+            data: data.map(r => this.toVm(r)),
             meta: {
                 total,
                 page,
