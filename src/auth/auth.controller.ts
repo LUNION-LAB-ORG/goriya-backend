@@ -41,4 +41,10 @@ export class AuthController {
     getProfile(@CurrentUser() user) {
         return user;
     }
+
+    @Post('refresh')
+    @ApiOperation({ summary: 'Rafrîchissement du token JWT' })
+    async refresh(@CurrentUser() user): Promise<{ token: string }> {
+        return this.authService.refresh(user);
+    }
 }

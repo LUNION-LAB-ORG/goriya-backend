@@ -48,6 +48,11 @@ export class AuthService {
         return { message: 'Logged out successfully' };
     }
 
+    async refresh(user: { id: string; email: string; role: string }): Promise<{ token: string }> {
+        const payload = { sub: user.id, email: user.email, role: user.role };
+        return { token: this.jwtService.sign(payload) };
+    }
+
     isTokenBlacklisted(token: string): boolean {
         return this.tokenBlacklist.has(token);
     }
