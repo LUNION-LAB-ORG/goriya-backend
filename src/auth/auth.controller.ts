@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Headers, Get } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { User } from '../users/user.entity';
+import { UserVm } from '../users/dto/user.vm';
 import { ApiOperation, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Public } from './public.decorator';
 import { CurrentUser } from './current-user.decorator';
@@ -23,7 +23,7 @@ export class AuthController {
     })
     async login(
         @Body() body: { email: string; password: string },
-    ): Promise<{ access_token: string; user: User }> {
+    ): Promise<{ access_token: string; user: UserVm }> {
         const { email, password } = body;
         return this.authService.login(email, password);
     }
