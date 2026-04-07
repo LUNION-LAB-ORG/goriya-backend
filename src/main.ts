@@ -18,6 +18,7 @@ async function bootstrap() {
         origin: [
             'https://goriya-entreprise.vercel.app',
             'https://goriya-standard.vercel.app',
+            'https://goriya-admin.vercel.app',
             'http://localhost:3000',
         ],
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
