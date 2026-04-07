@@ -16,6 +16,7 @@ import { CandidaturesModule } from './candidatures/candidatures.module';
 import { CalendarEventsModule } from './calendar-events/calendar-events.module';
 import { MatchingResultsModule } from './matching-results/matching-results.module';
 import { InterviewSessionsModule } from './interview-sessions/interview-sessions.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
     imports: [
@@ -36,6 +37,7 @@ import { InterviewSessionsModule } from './interview-sessions/interview-sessions
         InterviewSessionsModule,
         CalendarEventsModule,
         DashboardModule,
+        AnalyticsModule,
     ],
     controllers: [AppController],
     providers: [AppService],
