@@ -21,6 +21,7 @@ export class AuthController {
             }
         }
     })
+    // Login endpoint that accepts email and password, and returns an access token and users information upon successful authentication
     async login(
         @Body() body: { email: string; password: string },
     ): Promise<{ access_token: string; user: UserVm }> {
