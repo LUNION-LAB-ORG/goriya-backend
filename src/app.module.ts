@@ -3,6 +3,7 @@ import { AppService } from './app.service'
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller'
 import { databaseConfig } from './config/database.config';
 import { UsersModule } from './users/users.module';
@@ -24,6 +25,7 @@ import { CalendarEventsModule } from './calendar-events/calendar-events.module';
         TypeOrmModule.forRoot(databaseConfig),
 
         AuthModule,
+        AdminModule,
         UsersModule,
         CompaniesModule,
         JobOffersModule,

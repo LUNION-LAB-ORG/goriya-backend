@@ -15,5 +15,6 @@ import { CVAnalysis } from 'src/cv-analysis/cv-analysis.entity';
     ],
     controllers: [DashboardController],
     providers: [DashboardService],
+    exports: [DashboardService],
 })
 export class DashboardModule { }
