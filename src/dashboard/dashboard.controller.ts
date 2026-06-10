@@ -10,8 +10,10 @@ export class DashboardController {
     constructor(private readonly dashboardService: DashboardService) {}
 
     @Get('stats')
-    async getStats() {
-        return this.dashboardService.getStats();
+    @ApiQuery({ name: 'start', required: false, type: String })
+    @ApiQuery({ name: 'end', required: false, type: String })
+    async getStats(@Query('start') start?: string, @Query('end') end?: string) {
+        return this.dashboardService.getStats({ start, end });
     }
 
     @Get('performance')

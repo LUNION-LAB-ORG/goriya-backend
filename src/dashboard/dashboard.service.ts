@@ -9,6 +9,11 @@ import { User } from '../users/user.entity';
 import { Company } from '../companies/company.entity';
 import { CVAnalysis } from '../cv-analysis/cv-analysis.entity';
 
+type DashboardStatsParams = {
+    start?: string;
+    end?: string;
+};
+
 @Injectable()
 export class DashboardService {
     constructor(
@@ -31,16 +36,76 @@ export class DashboardService {
         private readonly cvAnalysisRepo: Repository<CVAnalysis>,
     ) {}
 
-    async getStats() {
+    private parseDate(value?: string): Date | null {
+        if (!value) return null;
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    private buildRange(params?: DashboardStatsParams): { start: Date; end: Date } | null {
+        const start = this.parseDate(params?.start);
+        const end = this.parseDate(params?.end);
+
+        if (!start && !end) return null;
+
+        const safeStart = start ?? new Date('1970-01-01T00:00:00.000Z');
+        const safeEnd = end ?? new Date();
+        return { start: safeStart, end: safeEnd };
+    }
+
+    async getStats(params?: DashboardStatsParams) {
+        const range = this.buildRange(params);
+
+        const applicationsInRange = range
+            ? await this.candidatureRepo.count({ where: { appliedDate: Between(range.start, range.end) } })
+            : await this.candidatureRepo.count();
+
+        const offersInRange = range
+            ? await this.jobOfferRepo
+                .createQueryBuilder('jobOffer')
+                .where('jobOffer.publishDate BETWEEN :start AND :end', { start: range.start, end: range.end })
+                .getCount()
+            : await this.jobOfferRepo.count({ where: { status: JobStatus.ACTIVE } });
+
         const [activeStudents, partnerCompanies, analyzedCVs, jobOffers, totalApplications, interviews] =
             await Promise.all([
                 this.userRepo.count({ where: { role: UserRole.USER, status: UserStatus.ACTIVE } }),
                 this.companyRepo.count({ where: { status: CompanyStatus.ACTIVE } }),
                 this.cvAnalysisRepo.count({ where: { status: CVStatus.COMPLETED } }),
-                this.jobOfferRepo.count({ where: { status: JobStatus.ACTIVE } }),
-                this.candidatureRepo.count(),
+                offersInRange,
+                applicationsInRange,
                 this.interviewRepo.count(),
             ]);
+
+        const [recentCandidates, topOffers, recentOffers, chartData, lineChartData] = await Promise.all([
+            this.candidatureRepo.find({
+                order: { appliedDate: 'DESC' },
+                take: 5,
+                relations: ['user', 'jobOffer', 'jobOffer.company'],
+            }),
+            this.jobOfferRepo.find({
+                where: { status: JobStatus.ACTIVE },
+                order: { applicants: 'DESC' },
+                take: 5,
+                relations: ['company'],
+            }),
+            this.jobOfferRepo.find({
+                order: { publishDate: 'DESC' },
+                take: 5,
+                relations: ['company'],
+            }),
+            this.getPerformanceData('month'),
+            this.getRecentOffersTrend(6),
+        ]);
+
+        const statsData = [
+            { key: 'activeStudents', label: 'Etudiants actifs', value: activeStudents },
+            { key: 'partnerCompanies', label: 'Entreprises partenaires', value: partnerCompanies },
+            { key: 'jobOffers', label: 'Offres publiees', value: jobOffers },
+            { key: 'totalApplications', label: 'Candidatures', value: totalApplications },
+            { key: 'interviews', label: 'Entretiens', value: interviews },
+            { key: 'analyzedCVs', label: 'CV analyses', value: analyzedCVs },
+        ];
 
         return {
             activeStudents,
@@ -51,7 +116,37 @@ export class DashboardService {
             interviews,
             profileViews: 0,
             savedJobs: 0,
+            statsData,
+            chartData,
+            lineChartData,
+            recentCandidates,
+            topOffers,
+            recentOffers,
         };
+    }
+
+    private async getRecentOffersTrend(monthCount = 6) {
+        const now = new Date();
+        const monthNames = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const trend: { month: string; value: number; label: string }[] = [];
+
+        for (let i = monthCount - 1; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+            const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+
+            const value = await this.jobOfferRepo.count({
+                where: { publishDate: Between(monthStart, monthEnd) },
+            });
+
+            trend.push({
+                month: monthNames[d.getMonth()],
+                value,
+                label: `${monthNames[d.getMonth()]} ${d.getFullYear()}`,
+            });
+        }
+
+        return trend;
     }
 
     async getPerformanceData(period?: string) {
