@@ -10,12 +10,14 @@ import { UploadedFile } from '../@types/utils'
 import { CreateCvAnalysisDto } from './dto/create-cv-analysis.dto'
 import { UpdateCvAnalysisDto } from './dto/update-cv-analysis.dto'
 import { CVAnalysisVm } from './dto/cv-analysis.vm'
+import { AnthropicService } from '../anthropic/anthropic.service'
 
 @Injectable()
 export class CVAnalysisService {
     constructor(
         @InjectRepository(CVAnalysis)
         private readonly cvAnalysisRepository: Repository<CVAnalysis>,
+        private readonly anthropicService: AnthropicService,
     ) {}
 
     private readonly allowedFileTypes = [
@@ -79,12 +81,30 @@ export class CVAnalysisService {
         try {
             const fileName = await this.handleFileUpload(file)
 
+            // Create with ANALYZING status while Claude processes the CV
             const cv = this.cvAnalysisRepository.create({
                 ...data,
-                fileName: fileName
+                fileName,
+                analysisScore: 0,
+                recommendations: [],
+                uploadDate: new Date(),
+                status: CVStatus.ANALYZING,
             })
-            return this.toVm(await this.cvAnalysisRepository.save(cv))
+            await this.cvAnalysisRepository.save(cv)
 
+            try {
+                // Analyze with Claude
+                const result = await this.anthropicService.analyzeCV(file.buffer, file.mimetype, file.originalname)
+                cv.analysisScore = result.score
+                cv.recommendations = result.recommendations
+                cv.status = CVStatus.COMPLETED
+                await this.cvAnalysisRepository.save(cv)
+            } catch {
+                cv.status = CVStatus.FAILED
+                await this.cvAnalysisRepository.save(cv)
+            }
+
+            return this.toVm(cv)
         } catch (error) {
             if (error instanceof BadRequestException) throw error;
             throw new InternalServerErrorException((error as any).message || 'Erreur interne lors de la création');

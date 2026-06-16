@@ -16,6 +16,10 @@ import { ScoringResultsModule } from './scoring/scoring-results.module';
 import { CVAnalysisModule } from './cv-analysis/cv-analysis.module';
 import { InterviewSessionsModule } from './interview-sessions/interview-sessions.module';
 import { CalendarEventsModule } from './calendar-events/calendar-events.module';
+import { AnthropicModule } from './anthropic/anthropic.module';
+import { WaveModule } from './wave/wave.module';
+import { AnonymousUsageModule } from './anonymous-usage/anonymous-usage.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 @Module({
     imports: [
@@ -24,6 +28,10 @@ import { CalendarEventsModule } from './calendar-events/calendar-events.module';
         }),
         TypeOrmModule.forRoot(databaseConfig),
 
+        AnthropicModule,
+        WaveModule,
+        AnonymousUsageModule,
+        SubscriptionsModule,
         AuthModule,
         AdminModule,
         UsersModule,

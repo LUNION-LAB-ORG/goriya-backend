@@ -4,6 +4,7 @@ import { UserVm } from '../users/dto/user.vm';
 import { ApiOperation, ApiBody, ApiTags } from '@nestjs/swagger';
 import { Public } from './public.decorator';
 import { CurrentUser } from './current-user.decorator';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 
 @Controller('auth')
 @ApiTags('Authentication')
@@ -47,5 +48,12 @@ export class AuthController {
     @ApiOperation({ summary: 'Rafrîchissement du token JWT' })
     async refresh(@CurrentUser() user): Promise<{ token: string }> {
         return this.authService.refresh(user);
+    }
+
+    @Public()
+    @Post('google')
+    @ApiOperation({ summary: 'Authentification via Google OAuth' })
+    async googleAuth(@Body() body: GoogleAuthDto) {
+        return this.authService.googleAuth(body);
     }
 }

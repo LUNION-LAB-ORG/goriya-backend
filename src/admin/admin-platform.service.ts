@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { AnthropicService } from '../anthropic/anthropic.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { Between, ILike, In, Repository } from 'typeorm';
@@ -96,6 +97,7 @@ export class AdminPlatformService {
         private readonly calendarEventRepository: Repository<CalendarEvent>,
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
+        private readonly anthropicService: AnthropicService,
     ) {}
 
     async verifyOtp(email: string, code: string) {
@@ -270,22 +272,37 @@ export class AdminPlatformService {
 
     async analyzeCv(file: UploadedFile) {
         const fileName = this.storeUploadedFile(file, 'analysis');
+
+        // Create with ANALYZING status first
         const entity = this.cvAnalysisRepository.create({
             fileName,
-            analysisScore: 75,
-            recommendations: ['Ajoutez des resultats chiffres', 'Mettez en avant vos competences clefs'],
+            analysisScore: 0,
+            recommendations: [],
             uploadDate: new Date(),
-            status: CVStatus.COMPLETED,
+            status: CVStatus.ANALYZING,
         });
-
         await this.cvAnalysisRepository.save(entity);
 
-        return {
-            score: entity.analysisScore,
-            suggestions: entity.recommendations,
-            strengths: ['Structure claire', 'Competences techniques visibles'],
-            improvements: ['Ajouter plus de contexte sur les projets'],
-        };
+        try {
+            // Call Claude for real analysis
+            const result = await this.anthropicService.analyzeCV(file.buffer, file.mimetype, file.originalname);
+
+            entity.analysisScore = result.score;
+            entity.recommendations = result.recommendations;
+            entity.status = CVStatus.COMPLETED;
+            await this.cvAnalysisRepository.save(entity);
+
+            return {
+                score: result.score,
+                suggestions: result.recommendations,
+                strengths: result.strengths,
+                improvements: result.improvements,
+            };
+        } catch (err) {
+            entity.status = CVStatus.FAILED;
+            await this.cvAnalysisRepository.save(entity);
+            throw err;
+        }
     }
 
     async getInterviewStats() {
@@ -473,12 +490,22 @@ export class AdminPlatformService {
             throw new NotFoundException('Candidat ou offre introuvable');
         }
 
+        // Call Claude for real matching score
+        const result = await this.anthropicService.matchCandidateToJob(
+            { name: candidate.name, email: candidate.email },
+            {
+                title: jobOffer.title,
+                company: jobOffer.company?.name || 'Entreprise',
+                description: jobOffer.description,
+            },
+        );
+
         const match = this.matchingRepository.create({
             candidateName: candidate.name,
             candidateEmail: candidate.email,
             position: jobOffer.title,
             company: jobOffer.company?.name || 'Entreprise',
-            matchingScore: 78,
+            matchingScore: result.matchingScore,
             status: MatchingStatus.NOUVEAU,
             matchDate: new Date(),
         });
@@ -486,17 +513,17 @@ export class AdminPlatformService {
         return this.matchingRepository.save(match);
     }
 
-    async createJobApplication(userId: string, jobOfferId: string) {
+    async createJobApplication(userId: string, jobId: string) {
         const [candidate, jobOffer] = await Promise.all([
             this.userRepository.findOne({ where: { id: userId } }),
-            this.jobOfferRepository.findOne({ where: { id: jobOfferId } }),
+            this.jobOfferRepository.findOne({ where: { id: jobId } }),
         ]);
 
         if (!candidate || !jobOffer) {
             throw new NotFoundException('Candidat ou offre introuvable');
         }
 
-        const application = this.candidatureRepository.create({
+        const candidature = this.candidatureRepository.create({
             candidateName: candidate.name,
             candidateEmail: candidate.email,
             status: CandidatureStatus.EN_ATTENTE,
@@ -506,7 +533,9 @@ export class AdminPlatformService {
             jobOffer,
         });
 
-        return this.candidatureRepository.save(application);
+        await this.jobOfferRepository.update(jobId, { applicants: (jobOffer.applicants || 0) + 1 });
+
+        return this.candidatureRepository.save(candidature);
     }
 
     async createInterviewSimulation(candidateId: string, position: string) {
@@ -535,12 +564,15 @@ export class AdminPlatformService {
             throw new NotFoundException('Candidat introuvable');
         }
 
+        // Call Claude for real scoring analysis
+        const aiResult = await this.anthropicService.scoreCandidate(candidate.name, candidate.email, position);
+
         const result = this.scoringRepository.create({
             candidateName: candidate.name,
             candidateEmail: candidate.email,
             position,
-            overallScore: 81,
-            criteria: this.scoringCriteria,
+            overallScore: aiResult.overallScore,
+            criteria: aiResult.criteria,
             analysisDate: new Date(),
             status: ScoringStatus.COMPLETED,
         });
@@ -588,67 +620,43 @@ export class AdminPlatformService {
     }
 
 
-            async createJobApplication(userId: string, jobId: string) {
-                const [candidate, jobOffer] = await Promise.all([
-                    this.userRepository.findOne({ where: { id: userId } }),
-                    this.jobOfferRepository.findOne({ where: { id: jobId } }),
-                ]);
+    async startInterviewSession(candidateId: string, position: string) {
+        const candidate = await this.userRepository.findOne({ where: { id: candidateId } });
+        if (!candidate) {
+            throw new NotFoundException('Candidat introuvable');
+        }
 
-                if (!candidate || !jobOffer) {
-                    throw new NotFoundException('Candidat ou offre introuvable');
-                }
+        const session = this.interviewRepository.create({
+            candidateName: candidate.name,
+            candidateEmail: candidate.email,
+            position,
+            duration: 0,
+            score: 0,
+            status: InterviewStatus.ACTIVE,
+            startTime: new Date(),
+        });
 
-                const candidature = this.candidatureRepository.create({
-                    candidateName: candidate.name,
-                    candidateEmail: candidate.email,
-                    status: CandidatureStatus.EN_ATTENTE,
-                    score: 0,
-                    appliedDate: new Date(),
-                    user: candidate,
-                    jobOffer,
-                });
+        return this.interviewRepository.save(session);
+    }
 
-                await this.jobOfferRepository.update(jobId, { applicants: (jobOffer.applicants || 0) + 1 });
+    async endInterviewSession(sessionId: string, feedback: string) {
+        const session = await this.interviewRepository.findOne({ where: { id: sessionId } });
+        if (!session) {
+            throw new NotFoundException('Session introuvable');
+        }
 
-                return this.candidatureRepository.save(candidature);
-            }
+        const duration = Math.max(1, Math.round((Date.now() - session.startTime.getTime()) / 60000));
+        session.feedback = feedback;
+        session.duration = duration;
+        session.status = InterviewStatus.COMPLETED;
+        session.score = session.score || 80;
 
-            async startInterviewSession(candidateId: string, position: string) {
-                const candidate = await this.userRepository.findOne({ where: { id: candidateId } });
-                if (!candidate) {
-                    throw new NotFoundException('Candidat introuvable');
-                }
+        return this.interviewRepository.save(session);
+    }
 
-                const session = this.interviewRepository.create({
-                    candidateName: candidate.name,
-                    candidateEmail: candidate.email,
-                    position,
-                    duration: 0,
-                    score: 0,
-                    status: InterviewStatus.ACTIVE,
-                    startTime: new Date(),
-                });
-
-                return this.interviewRepository.save(session);
-            }
-
-            async endInterviewSession(sessionId: string, feedback: string) {
-                const session = await this.interviewRepository.findOne({ where: { id: sessionId } });
-                if (!session) {
-                    throw new NotFoundException('Session introuvable');
-                }
-
-                const duration = Math.max(1, Math.round((Date.now() - session.startTime.getTime()) / 60000));
-                session.feedback = feedback;
-                session.duration = duration;
-                session.status = InterviewStatus.COMPLETED;
-                session.score = session.score || 80;
-
-                return this.interviewRepository.save(session);
-            }
     async exportSearchCsv(query: Record<string, unknown>) {
         const result = await this.searchAll(query);
-        return this.toCsv(result.data as Array<Record<string, unknown>>);
+        return this.toCsv(result.data as unknown as Array<Record<string, unknown>>);
     }
 
     async getConversations() {

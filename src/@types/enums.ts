@@ -87,3 +87,20 @@ export enum UserStatus {
     ACTIVE = "ACTIVE",
     INACTIVE = "INACTIVE",
 }
+
+// SUBSCRIPTIONS
+export enum BillingPeriod {
+    MONTHLY = "MONTHLY",
+    ANNUAL = "ANNUAL",
+}
+
+export enum SubscriptionStatus {
+    ACTIVE = "ACTIVE",
+    EXPIRED = "EXPIRED",
+    CANCELLED = "CANCELLED",
+}
+
+export enum SubscriptionUserType {
+    USER = "USER",
+    ENTREPRISE = "ENTREPRISE",
+}
