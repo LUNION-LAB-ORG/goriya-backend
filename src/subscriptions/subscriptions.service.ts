@@ -26,19 +26,27 @@ export class SubscriptionsService implements OnModuleInit {
 
         const plans = [
             {
-                name: 'Standard Gratuit',
+                name: 'Grouilleur',
                 price: 0,
                 billingPeriod: BillingPeriod.MONTHLY,
                 userType: SubscriptionUserType.USER,
-                features: ["Recherche d'emploi illimitée", '3 analyses CV par mois', 'Support par email'],
+                features: ["Recherche d'emploi illimitée", '3 analyses CV par mois', 'Support par email', 'Valable 2 semaines'],
                 isActive: true,
             },
             {
-                name: 'Standard Premium',
+                name: 'Standard',
+                price: 1999,
+                billingPeriod: BillingPeriod.MONTHLY,
+                userType: SubscriptionUserType.USER,
+                features: ['20 analyses CV par mois', 'Suggestions avancées IA', 'Multi-formats export', 'Personnalisation sectorielle', 'Support prioritaire'],
+                isActive: true,
+            },
+            {
+                name: 'Premium',
                 price: 4999,
                 billingPeriod: BillingPeriod.MONTHLY,
                 userType: SubscriptionUserType.USER,
-                features: ['Analyses CV illimitées', 'Suggestions IA avancées', "Simulation d'entretien IA", 'Support prioritaire', 'Export multi-formats'],
+                features: ['Analyses CV illimitées', 'Suggestions IA avancées', "Simulation d'entretien IA", 'Support prioritaire', 'Export multi-formats', 'Personnalisation sectorielle'],
                 isActive: true,
             },
             {
