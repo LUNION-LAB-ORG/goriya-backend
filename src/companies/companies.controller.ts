@@ -20,7 +20,6 @@ import { CompanyStatus } from '../@types/enums'
 import { Public } from '../auth/public.decorator'
 import type { UploadedFile as MulterFile } from '../@types/utils'
 
-@Public()
 @Controller('companies')
 export class CompaniesController {
     constructor(private readonly companiesService: CompaniesService) { }
@@ -53,6 +52,7 @@ export class CompaniesController {
     |----------------------------------------------------------------------
     */
     @Get()
+    @Public()
     async findAll() {
         return this.companiesService.findAll()
     }
@@ -63,6 +63,7 @@ export class CompaniesController {
     |----------------------------------------------------------------------
     */
     @Get('paginate')
+    @Public()
     async paginate(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
         @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 10,
@@ -106,6 +107,7 @@ export class CompaniesController {
     |----------------------------------------------------------------------
     */
     @Get(':id')
+    @Public()
     async findOne(@Param('id') id: string) {
         return this.companiesService.findOne(id)
     }

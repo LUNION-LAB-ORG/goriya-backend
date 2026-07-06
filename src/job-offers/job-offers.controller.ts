@@ -15,7 +15,6 @@ import { JobOffersService } from './job-offers.service'
 import { UpdateJobOfferDto } from './dto/update-job-offer.dto'
 import { CreateJobOfferDto } from './dto/create-job-offer.dto'
 
-@Public()
 @Controller('job-offers')
 export class JobOffersController {
     constructor(private readonly jobOffersService: JobOffersService) {}
@@ -32,20 +31,22 @@ export class JobOffersController {
 
     /*
     |----------------------------------------------------------------------
-    | FIND ALL
+    | FIND ALL (offres consultables publiquement, sans connexion)
     |----------------------------------------------------------------------
     */
     @Get()
+    @Public()
     async findAll() {
         return this.jobOffersService.findAll()
     }
 
     /*
     |----------------------------------------------------------------------
-    | PAGINATED SEARCH AVEC FILTRES
+    | PAGINATED SEARCH AVEC FILTRES (public)
     |----------------------------------------------------------------------
     */
     @Get('paginate')
+    @Public()
     async paginate(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
         @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 10,
@@ -75,6 +76,7 @@ export class JobOffersController {
     |----------------------------------------------------------------------
     */
     @Get(':id')
+    @Public()
     async findOne(@Param('id') id: string) {
         return this.jobOffersService.findOne(id)
     }

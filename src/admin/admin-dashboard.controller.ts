@@ -1,8 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from '../dashboard/dashboard.service';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../@types/enums';
 import { success } from './admin-response';
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin Dashboard')
 @Controller('admin/dashboard')
 export class AdminDashboardController {

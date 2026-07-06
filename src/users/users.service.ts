@@ -69,7 +69,9 @@ export class UsersService {
     }
 
     private deleteFile(filePath: string) {
-        const fullPath = path.join(__dirname, '../../', filePath)
+        // Les fichiers sont écrits dans this.uploadDir (voir handleAvatarUpload) : il faut
+        // reconstruire le même chemin absolu, pas repartir de __dirname (sinon on ne supprime jamais rien).
+        const fullPath = path.join(this.uploadDir, path.basename(filePath))
         if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath)
     }
 
@@ -78,8 +80,12 @@ export class UsersService {
     | CREATE
     |--------------------------------------------------------------------------
     */
-    async create(data: CreateUserDto, avatar?: UploadedFile): Promise<{ user: UserVm; accessToken: string }> {
+    async create(data: CreateUserDto, avatar?: UploadedFile, allowAdminRole = false): Promise<{ user: UserVm; accessToken: string }> {
         try {
+            if (data.role === UserRole.ADMIN && !allowAdminRole) {
+                throw new BadRequestException('Impossible de créer un compte administrateur par cette voie')
+            }
+
             const userData: Partial<User> = { ...data }
 
             // hash password

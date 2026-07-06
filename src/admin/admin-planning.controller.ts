@@ -1,9 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CalendarEventsService } from '../calendar-events/calendar-events.service';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../@types/enums';
 import { AdminPlatformService } from './admin-platform.service';
 import { success } from './admin-response';
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin Planning')
 @Controller('admin/planning')
 export class AdminPlanningController {

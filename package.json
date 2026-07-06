@@ -18,7 +18,8 @@
         "test:cov": "jest --coverage",
         "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
         "test:e2e": "jest --config ./test/jest-e2e.json",
-        "seed": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm-extension/bin/cli.cjs seed:run --dataSource src/database/data-source.ts"
+        "seed": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm-extension/bin/cli.cjs seed:run --dataSource src/database/data-source.ts",
+        "seed:prod": "node -r ts-node/register -r tsconfig-paths/register ./node_modules/typeorm-extension/bin/cli.cjs seed:run --dataSource src/database/data-source.prod.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.104.2",

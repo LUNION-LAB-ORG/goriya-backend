@@ -1,12 +1,23 @@
+import 'dotenv/config'
 import { TypeOrmModuleOptions } from '@nestjs/typeorm'
+
+function requireEnv(name: string): string {
+    const value = process.env[name]
+    if (!value) {
+        throw new Error(`Missing required environment variable: ${name}`)
+    }
+    return value
+}
 
 export const databaseConfig: TypeOrmModuleOptions = {
     type: 'postgres',
-    host: process.env.DB_HOST || '147.79.101.226',
-    port: 5432,
-    username: process.env.DB_USERNAME || 'turbo',
-    password: process.env.DB_PASSWORD || 'turbo',
-    database: process.env.DB_DATABASE || 'goriya',
+    host: requireEnv('DB_HOST'),
+    port: Number(process.env.DB_PORT) || 5432,
+    username: requireEnv('DB_USERNAME'),
+    password: requireEnv('DB_PASSWORD'),
+    database: requireEnv('DB_DATABASE'),
     autoLoadEntities: true,
-    synchronize: true
+    // Ne jamais synchroniser automatiquement le schéma en dehors du développement local :
+    // des migrations existent déjà (src/database/migrations, migrations.sql) et doivent piloter la prod.
+    synchronize: process.env.NODE_ENV !== 'production',
 }

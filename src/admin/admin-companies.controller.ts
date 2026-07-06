@@ -1,8 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UploadedFiles, UseInterceptors } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
-import { CompanyStatus } from '../@types/enums';
+import { CompanyStatus, UserRole } from '../@types/enums';
 import { CompaniesService } from '../companies/companies.service';
+import { Roles } from '../auth/roles.decorator';
 import { AdminPlatformService } from './admin-platform.service';
 import { paginated, success } from './admin-response';
 import type { UploadedFile as MulterFile } from '../@types/utils';
@@ -14,6 +15,7 @@ function asArray(value?: string | string[]) {
     return Array.isArray(value) ? value : [value];
 }
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin Companies')
 @Controller('admin/companies')
 export class AdminCompaniesController {

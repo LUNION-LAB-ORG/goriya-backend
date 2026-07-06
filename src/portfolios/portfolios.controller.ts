@@ -14,7 +14,6 @@ import { CreatePortfolioDto } from './dto/create-portfolio.dto'
 import { UpdatePortfolioDto } from './dto/update-portfolio.dto'
 import { Public } from '../auth/public.decorator'
 
-@Public()
 @Controller('portfolios')
 export class PortfoliosController {
     constructor(private readonly portfoliosService: PortfoliosService) {}
@@ -31,20 +30,22 @@ export class PortfoliosController {
 
     /*
     |----------------------------------------------------------------------
-    | FIND ALL
+    | FIND ALL (portfolios consultables publiquement, comme une vitrine)
     |----------------------------------------------------------------------
     */
     @Get()
+    @Public()
     async findAll() {
         return this.portfoliosService.findAll()
     }
 
     /*
     |----------------------------------------------------------------------
-    | PAGINATED SEARCH AVEC FILTRES
+    | PAGINATED SEARCH AVEC FILTRES (public)
     |----------------------------------------------------------------------
     */
     @Get('paginate')
+    @Public()
     async paginate(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
         @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 10,
@@ -76,6 +77,7 @@ export class PortfoliosController {
     |----------------------------------------------------------------------
     */
     @Get(':id')
+    @Public()
     async findOne(@Param('id') id: string) {
         return this.portfoliosService.findOne(id)
     }

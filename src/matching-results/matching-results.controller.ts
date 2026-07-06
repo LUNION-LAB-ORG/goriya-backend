@@ -13,9 +13,7 @@ import { MatchingResultsService } from './matching-results.service'
 import { CreateMatchingResultDto } from './dto/create-matching-result.dto'
 import { UpdateMatchingResultDto } from './dto/update-matching-result.dto'
 import { MatchingStatus } from '../@types/enums'
-import { Public } from '../auth/public.decorator'
 
-@Public()
 @Controller('matching-results')
 export class MatchingResultsController {
     constructor(private readonly matchingResultsService: MatchingResultsService) {}

@@ -5,7 +5,10 @@ import { JwtService } from '@nestjs/jwt';
 import { AuthService } from '../auth/auth.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Public } from '../auth/public.decorator';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../@types/enums';
 import { UsersService } from '../users/users.service';
+import { CreateUserDto } from '../users/dto/create-user.dto';
 import { AdminPlatformService } from './admin-platform.service';
 import { success } from './admin-response';
 import type { UploadedFile as MulterFile } from '../@types/utils';
@@ -26,10 +29,13 @@ export class AdminAuthController {
         return success(await this.authService.login(body.email, body.password));
     }
 
-    @Public()
+    // Réservé aux admins déjà authentifiés : évite qu'un appelant non authentifié
+    // puisse s'auto-attribuer le rôle ADMIN via ce endpoint (cf. UsersController pour le
+    // vrai endpoint public d'auto-inscription, qui refuse explicitement le rôle ADMIN).
+    @Roles(UserRole.ADMIN)
     @Post('users')
-    async register(@Body() body: Record<string, unknown>) {
-        const result = await this.usersService.create(body as never);
+    async register(@Body() body: CreateUserDto) {
+        const result = await this.usersService.create(body, undefined, true);
         return success({ token: result.accessToken, user: result.user });
     }
 

@@ -1,15 +1,17 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
-import { CVStatus, InterviewStatus, MatchingStatus, ScoringStatus } from '../@types/enums';
+import { CVStatus, InterviewStatus, MatchingStatus, ScoringStatus, UserRole } from '../@types/enums';
 import { CVAnalysisService } from '../cv-analysis/cv-analysis.service';
 import { InterviewSessionsService } from '../interview-sessions/interview-sessions.service';
 import { MatchingResultsService } from '../matching-results/matching-results.service';
 import { ScoringResultsService } from '../scoring/scoring-results.service';
+import { Roles } from '../auth/roles.decorator';
 import { AdminPlatformService } from './admin-platform.service';
 import { paginated, success } from './admin-response';
 import type { UploadedFile as MulterFile } from '../@types/utils';
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin AI')
 @Controller('admin')
 export class AdminAiController {

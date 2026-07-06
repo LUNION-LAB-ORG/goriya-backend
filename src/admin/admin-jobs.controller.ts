@@ -1,9 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { CandidatureStatus, JobStatus } from '../@types/enums';
+import { CandidatureStatus, JobStatus, UserRole } from '../@types/enums';
 import { JobOffersService } from '../job-offers/job-offers.service';
 import { CandidaturesService } from '../candidatures/candidatures.service';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { Roles } from '../auth/roles.decorator';
 import { AdminPlatformService } from './admin-platform.service';
 import { paginated, success } from './admin-response';
 
@@ -14,6 +15,7 @@ function asArray(value?: string | string[]) {
     return Array.isArray(value) ? value : [value];
 }
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin Jobs')
 @Controller('admin')
 export class AdminJobsController {

@@ -1,9 +1,12 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../@types/enums';
 import { AdminPlatformService } from './admin-platform.service';
 import { paginated, success } from './admin-response';
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin System')
 @Controller('admin')
 export class AdminSystemController {

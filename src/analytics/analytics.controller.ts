@@ -1,10 +1,11 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
-import { Public } from 'src/auth/public.decorator';
+import { Roles } from 'src/auth/roles.decorator';
+import { UserRole } from 'src/@types/enums';
 import { AnalyticsService } from './analytics.service';
 
-@Public()
+@Roles(UserRole.ADMIN)
 @ApiTags('Analytics')
 @Controller('analytics')
 export class AnalyticsController {

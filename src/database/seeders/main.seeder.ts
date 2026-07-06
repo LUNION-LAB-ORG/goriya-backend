@@ -3,6 +3,22 @@ import { Seeder } from 'typeorm-extension';
 import { faker } from '@faker-js/faker';
 import * as bcrypt from 'bcrypt';
 
+import {
+    IVORIAN_CITIES,
+    COMPANY_SECTORS,
+    COMPANY_SIZES,
+    JOB_TEMPLATES,
+    generateCompanyNames,
+    randomItem,
+    randomFullName,
+    emailFromName,
+    randomIvorianPhone,
+    formatSalary,
+    companyLogoUrl,
+    buildJobDescription,
+    buildJobBenefits,
+} from './data/ivorian.data';
+
 // Core entities
 import { User } from '../../users/user.entity';
 import { Portfolio } from '../../portfolios/portfolio.entity';
@@ -48,46 +64,60 @@ export default class MainSeeder implements Seeder {
         const cvRepo = dataSource.getRepository(CVAnalysis);
         const eventRepo = dataSource.getRepository(CalendarEvent);
 
+        // Chaque entité vise ~500 enregistrements, reliés entre eux (companies -> users/jobs,
+        // jobs + users -> candidatures, candidatures -> scoring/matching/interviews/events).
+        const TARGET_COMPANIES = 500;
+        const TARGET_USERS = 500;
+        const TARGET_JOBS = 500;
+        const TARGET_PORTFOLIOS = 500;
+        const TARGET_CANDIDATURES = 500;
+
         // -------------------------
         // 1. COMPANIES
         // -------------------------
         const companies = await companyRepo.save(
-            Array.from({ length: 20 }).map(() => companyRepo.create({
-                name: faker.company.name(),
-                sector: faker.commerce.department(),
-                logo: faker.image.urlPicsumPhotos(),
-                coverImage: faker.image.urlPicsumPhotos(),
-                about: faker.company.catchPhrase(),
-                creationDate: faker.date.past({ years: 10 }),
-                partnershipDate: faker.date.recent(),
-                companySize: faker.helpers.arrayElement(['1-10', '11-50', '51-200', '201-500', '500+']),
-                website: faker.internet.url(),
-                socialLinks: [
-                    faker.internet.url(),
-                    faker.internet.url(),
-                    faker.internet.url()
-                ],
-                country: faker.location.country(),
-                headquarters: faker.location.city(),
-                location: faker.location.city(),
-                phone: faker.phone.number(),
-                email: faker.internet.email(),
-                status: faker.helpers.arrayElement(Object.values(CompanyStatus)),
-            }))
+            generateCompanyNames(TARGET_COMPANIES).map((name) => {
+                const city = randomItem(IVORIAN_CITIES);
+                const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                return companyRepo.create({
+                    name,
+                    sector: randomItem(COMPANY_SECTORS),
+                    logo: companyLogoUrl(name),
+                    coverImage: faker.image.urlPicsumPhotos(),
+                    about: `${name} est une entreprise ivoirienne reconnue dans son secteur, basée à ${city}.`,
+                    creationDate: faker.date.past({ years: 15 }),
+                    partnershipDate: faker.date.recent({ days: 180 }),
+                    companySize: randomItem(COMPANY_SIZES),
+                    website: `https://www.${slug}.ci`,
+                    socialLinks: [
+                        `https://www.facebook.com/${slug}`,
+                        `https://www.linkedin.com/company/${slug}`,
+                        `https://www.instagram.com/${slug}`,
+                    ],
+                    country: 'Côte d\'Ivoire',
+                    headquarters: city,
+                    location: city,
+                    phone: randomIvorianPhone(),
+                    email: `contact@${slug}.ci`,
+                    status: faker.helpers.arrayElement(Object.values(CompanyStatus)),
+                });
+            }),
+            { chunk: 50 }
         );
-        console.log('✅ Companies seeded');
+        console.log(`✅ Companies seeded (${companies.length})`);
 
         // -------------------------
         // 2. USERS
         // -------------------------
         const users = await userRepo.save(
             await Promise.all(
-                Array.from({ length: 30 }).map(async (_, i) => {
+                Array.from({ length: TARGET_USERS }).map(async (_, i) => {
                     const isEnterprise = i % 3 === 0;
+                    const name = randomFullName();
 
                     return userRepo.create({
-                        name: faker.person.fullName(),
-                        email: faker.internet.email(),
+                        name,
+                        email: emailFromName(name, i),
                         password: await bcrypt.hash('password123', 10),
                         role: isEnterprise ? UserRole.ENTERPRISE : (i === 0 ? UserRole.ADMIN : UserRole.USER),
                         status: UserStatus.ACTIVE,
@@ -95,88 +125,106 @@ export default class MainSeeder implements Seeder {
                         company: isEnterprise ? faker.helpers.arrayElement(companies) : null,
                     });
                 })
-            )
+            ),
+            { chunk: 50 }
         );
-        console.log('✅ Users seeded');
+        console.log(`✅ Users seeded (${users.length})`);
 
         // -------------------------
         // 3. JOB OFFERS
         // -------------------------
-        const enterpriseUsers = users.filter(u => u.role === UserRole.ENTERPRISE);
-        const jobs: JobOffer[] = [];
+        const JOBS_TARGET = TARGET_JOBS;
+        const jobsPerCompany = Math.ceil(JOBS_TARGET / companies.length);
 
-        for (const user of enterpriseUsers) {
-            if (!user.company) continue;
+        const jobsToCreate: JobOffer[] = [];
+        for (const company of companies) {
+            const count = faker.number.int({ min: Math.max(1, jobsPerCompany - 5), max: jobsPerCompany + 5 });
 
-            for (let i = 0; i < faker.number.int({ min: 1, max: 3 }); i++) {
-                const job = jobRepo.create({
-                    title: faker.person.jobTitle(),
-                    location: faker.location.city(),
+            for (let i = 0; i < count && jobsToCreate.length < JOBS_TARGET; i++) {
+                const template = randomItem(JOB_TEMPLATES);
+                const location = randomItem(IVORIAN_CITIES);
+                const experience = faker.helpers.arrayElement(Object.values(JobExperienceType)) as JobExperienceType;
+                const publishDate = faker.date.recent({ days: 3 });
+                const endDate = faker.date.soon({ days: 45, refDate: publishDate });
+
+                jobsToCreate.push(jobRepo.create({
+                    title: template.title,
+                    location,
                     type: faker.helpers.arrayElement(Object.values(JobType)) as JobType,
-                    experience: faker.helpers.arrayElement(Object.values(JobExperienceType)) as JobExperienceType,
-                    salary: `${faker.number.int({ min: 300, max: 5000 })} USD`,
-                    description: faker.lorem.paragraph(),
-                    benefits: faker.lorem.paragraph(),
-                    requirements: faker.helpers.arrayElements(['NestJS','React','Flutter','NodeJS','Laravel'], 3),
+                    experience,
+                    salary: formatSalary(experience),
+                    description: buildJobDescription(template.title, company.name, location, template.skills),
+                    benefits: buildJobBenefits(),
+                    requirements: template.skills,
                     status: JobStatus.ACTIVE,
                     applicants: 0,
-                    company: user.company
-                });
-
-                const savedJob = await jobRepo.save(job);
-                jobs.push(savedJob);
+                    publishDate,
+                    endDate,
+                    company,
+                }));
             }
         }
-        console.log('✅ JobOffers seeded');
+
+        const jobs = await jobRepo.save(jobsToCreate, { chunk: 50 });
+        console.log(`✅ JobOffers seeded (${jobs.length})`);
 
         // -------------------------
         // 4. PORTFOLIOS
         // -------------------------
-        await portfolioRepo.save(
-            users.flatMap(user =>
-                Array.from({ length: faker.number.int({ min: 1, max: 3 }) }).map(() => portfolioRepo.create({
-                    title: faker.person.jobTitle(),
-                    description: faker.lorem.paragraph(),
-                    skills: faker.helpers.arrayElements(['NestJS','React','Flutter','NodeJS','Laravel'], 3),
+        const portfolioOwners = users
+            .flatMap(user => Array.from({ length: faker.number.int({ min: 1, max: 3 }) }).map(() => user))
+            .slice(0, TARGET_PORTFOLIOS);
+
+        const portfolios = await portfolioRepo.save(
+            portfolioOwners.map(user => {
+                const template = randomItem(JOB_TEMPLATES);
+                return portfolioRepo.create({
+                    title: template.title,
+                    description: `Portfolio professionnel présentant mes réalisations en ${template.skills.join(', ')}.`,
+                    skills: template.skills,
                     views: faker.number.int(500),
                     downloads: faker.number.int(100),
                     likes: faker.number.int(200),
                     createdDate: faker.date.past(),
                     user,
-                }))
-            )
+                });
+            }),
+            { chunk: 50 }
         );
-        console.log('✅ Portfolios seeded');
+        console.log(`✅ Portfolios seeded (${portfolios.length})`);
 
         // -------------------------
         // 5. CANDIDATURES
         // -------------------------
         const candidateUsers = users.filter(u => u.role === UserRole.USER);
 
+        const candidatureOwners = candidateUsers
+            .flatMap(user => Array.from({ length: faker.number.int({ min: 1, max: 4 }) }).map(() => user))
+            .slice(0, TARGET_CANDIDATURES);
+
         const candidatures = await candidatureRepo.save(
-            candidateUsers.flatMap(user =>
-                Array.from({ length: faker.number.int({ min: 1, max: 4 }) }).map(() => {
-                    const job = faker.helpers.arrayElement(jobs);
-                    job.applicants++;
-                    return candidatureRepo.create({
-                        candidateName: user.name,
-                        candidateEmail: user.email,
-                        status: faker.helpers.arrayElement(Object.values(CandidatureStatus)),
-                        score: faker.number.int({ min: 50, max: 100 }),
-                        appliedDate: faker.date.recent(),
-                        user,
-                        jobOffer: job
-                    });
-                })
-            )
+            candidatureOwners.map(user => {
+                const job = faker.helpers.arrayElement(jobs);
+                job.applicants++;
+                return candidatureRepo.create({
+                    candidateName: user.name,
+                    candidateEmail: user.email,
+                    status: faker.helpers.arrayElement(Object.values(CandidatureStatus)),
+                    score: faker.number.int({ min: 50, max: 100 }),
+                    appliedDate: faker.date.recent(),
+                    user,
+                    jobOffer: job
+                });
+            }),
+            { chunk: 50 }
         );
-        await jobRepo.save(jobs);
-        console.log('✅ Candidatures seeded');
+        await jobRepo.save(jobs, { chunk: 50 });
+        console.log(`✅ Candidatures seeded (${candidatures.length})`);
 
         // -------------------------
         // 6. SCORING
         // -------------------------
-        await scoringRepo.save(
+        const scoringResults = await scoringRepo.save(
             candidatures.map(c => scoringRepo.create({
                 candidateName: c.candidateName,
                 candidateEmail: c.candidateEmail,
@@ -189,14 +237,15 @@ export default class MainSeeder implements Seeder {
                 },
                 analysisDate: faker.date.recent(),
                 status: faker.helpers.arrayElement(Object.values(ScoringStatus))
-            }))
+            })),
+            { chunk: 50 }
         );
-        console.log('✅ ScoringResults seeded');
+        console.log(`✅ ScoringResults seeded (${scoringResults.length})`);
 
         // -------------------------
         // 7. MATCHING
         // -------------------------
-        await matchingRepo.save(
+        const matchingResults = await matchingRepo.save(
             candidatures.map(c => matchingRepo.create({
                 candidateName: c.candidateName,
                 candidateEmail: c.candidateEmail,
@@ -205,14 +254,15 @@ export default class MainSeeder implements Seeder {
                 matchingScore: faker.number.int(100),
                 status: faker.helpers.arrayElement(Object.values(MatchingStatus)),
                 matchDate: faker.date.recent()
-            }))
+            })),
+            { chunk: 50 }
         );
-        console.log('✅ MatchingResults seeded');
+        console.log(`✅ MatchingResults seeded (${matchingResults.length})`);
 
         // -------------------------
         // 8. INTERVIEWS
         // -------------------------
-        await interviewRepo.save(
+        const interviewSessions = await interviewRepo.save(
             candidatures.map(c => interviewRepo.create({
                 candidateName: c.candidateName,
                 candidateEmail: c.candidateEmail,
@@ -221,29 +271,36 @@ export default class MainSeeder implements Seeder {
                 score: faker.number.int(100),
                 status: faker.helpers.arrayElement(Object.values(InterviewStatus)),
                 startTime: faker.date.recent(),
-                feedback: faker.lorem.sentence()
-            }))
+                feedback: randomItem([
+                    'Bonne maîtrise technique, communication claire.',
+                    'Profil motivé, à approfondir sur certains points techniques.',
+                    'Excellente présentation, expérience solide.',
+                    'Manque un peu de recul sur la gestion de projet.',
+                ])
+            })),
+            { chunk: 50 }
         );
-        console.log('✅ InterviewSessions seeded');
+        console.log(`✅ InterviewSessions seeded (${interviewSessions.length})`);
 
         // -------------------------
         // 9. CV ANALYSIS
         // -------------------------
-        await cvRepo.save(
+        const cvAnalyses = await cvRepo.save(
             users.map(u => cvRepo.create({
                 fileName: `${u.name}_cv.pdf`,
                 analysisScore: faker.number.int(100),
-                recommendations: faker.helpers.arrayElements(['Improve skills','Add projects','Update experience'], 2),
+                recommendations: faker.helpers.arrayElements(['Renforcer les compétences techniques', 'Ajouter des projets concrets', 'Mettre à jour les expériences professionnelles', 'Détailler les réalisations chiffrées'], 2),
                 uploadDate: faker.date.recent(),
                 status: faker.helpers.arrayElement(Object.values(CVStatus))
-            }))
+            })),
+            { chunk: 50 }
         );
-        console.log('✅ CVAnalysis seeded');
+        console.log(`✅ CVAnalysis seeded (${cvAnalyses.length})`);
 
         // -------------------------
         // 10. CALENDAR EVENTS
         // -------------------------
-        await eventRepo.save(
+        const calendarEvents = await eventRepo.save(
             candidatures.map(c => {
                 const start = faker.date.future();
                 const end = faker.date.future({ refDate: start });
@@ -256,8 +313,9 @@ export default class MainSeeder implements Seeder {
                     location: faker.location.city(),
                     status: EventStatus.CONFIRMED
                 });
-            })
+            }),
+            { chunk: 50 }
         );
-        console.log('✅ CalendarEvents seeded');
+        console.log(`✅ CalendarEvents seeded (${calendarEvents.length})`);
     }
 }

@@ -1,9 +1,10 @@
-import { Public } from 'src/auth/public.decorator';
+import { Roles } from 'src/auth/roles.decorator';
+import { UserRole } from 'src/@types/enums';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { Controller, Get, Query } from '@nestjs/common';
 
-@Public()
+@Roles(UserRole.ADMIN)
 @ApiTags('Dashboard')
 @Controller('dashboard')
 export class DashboardController {

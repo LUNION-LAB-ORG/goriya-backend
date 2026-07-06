@@ -1,9 +1,12 @@
 import { Body, Controller, Delete, Get, Param, Patch, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { PortfoliosService } from '../portfolios/portfolios.service';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../@types/enums';
 import { AdminPlatformService } from './admin-platform.service';
 import { paginated, success } from './admin-response';
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin Portfolios')
 @Controller('admin/portfolios')
 export class AdminPortfoliosController {

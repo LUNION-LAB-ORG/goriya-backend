@@ -13,24 +13,25 @@ import {
 } from '@nestjs/common'
 import { UsersService } from './users.service'
 import { Public } from '../auth/public.decorator'
+import { Roles } from '../auth/roles.decorator'
 import { CreateUserDto } from './dto/create-user.dto'
 import { UpdateUserDto } from './dto/update-user.dto'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { CompanyStatus, UserRole, UserStatus } from '../@types/enums'
 import type { UploadedFile as MulterFile } from '../@types/utils'
 
-@Public()
 @Controller('users')
 export class UsersController {
     constructor(private readonly usersService: UsersService) {}
 
     /*
     |----------------------------------------------------------------------
-    | CREATE
+    | CREATE (auto-inscription publique : le rôle ADMIN est explicitement
+    | refusé côté service, voir UsersService.create)
     |----------------------------------------------------------------------
     */
     @Post()
-    // @UseGuards(JwtAuthGuard)
+    @Public()
     @UseInterceptors(FileInterceptor('avatar'))
     async create(@Body() data: CreateUserDto, @UploadedFile() avatar?: MulterFile) {
         return this.usersService.create(data, avatar)
@@ -38,23 +39,22 @@ export class UsersController {
 
     /*
     |----------------------------------------------------------------------
-    | FIND ALL
+    | FIND ALL (liste complète des utilisateurs : réservé aux admins)
     |----------------------------------------------------------------------
     */
     @Get()
-    // @UseGuards(JwtAuthGuard)
+    @Roles(UserRole.ADMIN)
     async findAll() {
         return this.usersService.findAll()
     }
 
     /*
     |----------------------------------------------------------------------
-    | PAGINATED SEARCH AVEC FILTRES
+    | PAGINATED SEARCH AVEC FILTRES (réservé aux admins)
     |----------------------------------------------------------------------
     */
     @Get('paginate')
-    // @Roles(UserRole.ADMIN)
-    // @UseGuards(JwtAuthGuard)
+    @Roles(UserRole.ADMIN)
     async paginate(
         @Query('page', new ParseIntPipe({ optional: true })) page: number = 1,
         @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 10,
@@ -93,7 +93,6 @@ export class UsersController {
     |----------------------------------------------------------------------
     */
     @Get(':id')
-    // @UseGuards(JwtAuthGuard)
     async findOne(@Param('id') id: string) {
         return this.usersService.findOne(id)
     }
@@ -104,7 +103,6 @@ export class UsersController {
     |----------------------------------------------------------------------
     */
     @Patch(':id')
-    // @UseGuards(JwtAuthGuard)
     @UseInterceptors(FileInterceptor('avatar'))
     async update(
         @Param('id') id: string,
@@ -120,7 +118,7 @@ export class UsersController {
     |----------------------------------------------------------------------
     */
     @Delete(':id')
-    // @UseGuards(JwtAuthGuard)
+    @Roles(UserRole.ADMIN)
     async remove(@Param('id') id: string) {
         return this.usersService.remove(id)
     }

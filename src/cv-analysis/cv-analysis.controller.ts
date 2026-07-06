@@ -16,10 +16,8 @@ import { CVAnalysisService } from './cv-analysis.service'
 import { CreateCvAnalysisDto } from './dto/create-cv-analysis.dto'
 import { UpdateCvAnalysisDto } from './dto/update-cv-analysis.dto'
 import { CVStatus } from '../@types/enums'
-import { Public } from '../auth/public.decorator'
 import type { UploadedFile as MulterFile } from '../@types/utils'
 
-@Public()
 @Controller('cv-analysis')
 export class CVAnalysisController {
     constructor(private readonly cvAnalysisService: CVAnalysisService) {}

@@ -4,10 +4,12 @@ import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { UserRole, UserStatus } from '../@types/enums';
 import { UsersService } from '../users/users.service';
+import { Roles } from '../auth/roles.decorator';
 import { AdminPlatformService } from './admin-platform.service';
 import { paginated, success } from './admin-response';
 import type { UploadedFile as MulterFile } from '../@types/utils';
 
+@Roles(UserRole.ADMIN)
 @ApiTags('Admin Students')
 @Controller('admin/students')
 export class AdminStudentsController {
